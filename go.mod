@@ -1,6 +1,6 @@
-module github.com/hashicorp/terraform-provider-scaffolding-framework
+module github.com/mariadb-corporation/terraform-provider-skysql-v2
 
-go 1.18
+go 1.19
 
 require (
 	github.com/hashicorp/terraform-plugin-docs v0.13.0
@@ -8,6 +8,7 @@ require (
 	github.com/hashicorp/terraform-plugin-go v0.14.2
 	github.com/hashicorp/terraform-plugin-log v0.7.0
 	github.com/hashicorp/terraform-plugin-sdk/v2 v2.24.1
+	github.com/go-resty/resty/v2 v2.7.0
 )
 
 require (

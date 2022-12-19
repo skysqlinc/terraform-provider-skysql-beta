@@ -2,7 +2,8 @@ package provider
 
 import (
 	"context"
-	"net/http"
+	"github.com/mariadb-corporation/terraform-provider-skysql-v2/internal/skysql"
+	"os"
 
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/provider"
@@ -11,40 +12,48 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/types"
 )
 
-// Ensure ScaffoldingProvider satisfies various provider interfaces.
-var _ provider.Provider = &ScaffoldingProvider{}
+// Ensure skySQLProvider satisfies various provider interfaces.
+var _ provider.Provider = &skySQLProvider{}
 
-// ScaffoldingProvider defines the provider implementation.
-type ScaffoldingProvider struct {
+// skySQLProvider defines the provider implementation.
+type skySQLProvider struct {
 	// version is set to the provider version on release, "dev" when the
 	// provider is built and ran locally, and "test" when running acceptance
 	// testing.
 	version string
 }
 
-// ScaffoldingProviderModel describes the provider data model.
-type ScaffoldingProviderModel struct {
-	Endpoint types.String `tfsdk:"endpoint"`
+// skySQLProviderModel describes the provider data model.
+type skySQLProviderModel struct {
+	BaseURL     types.String `tfsdk:"base_url"`
+	AccessToken types.String `tfsdk:"access_token"`
 }
 
-func (p *ScaffoldingProvider) Metadata(ctx context.Context, req provider.MetadataRequest, resp *provider.MetadataResponse) {
-	resp.TypeName = "scaffolding"
+func (p *skySQLProvider) Metadata(ctx context.Context, req provider.MetadataRequest, resp *provider.MetadataResponse) {
+	resp.TypeName = "skysql"
 	resp.Version = p.version
 }
 
-func (p *ScaffoldingProvider) Schema(ctx context.Context, req provider.SchemaRequest, resp *provider.SchemaResponse) {
+func (p *skySQLProvider) Schema(ctx context.Context, req provider.SchemaRequest, resp *provider.SchemaResponse) {
 	resp.Schema = schema.Schema{
 		Attributes: map[string]schema.Attribute{
-			"endpoint": schema.StringAttribute{
-				MarkdownDescription: "Example provider attribute",
+			"access_token": schema.StringAttribute{
+				MarkdownDescription: "SkySQL API access token",
 				Optional:            true,
+				Sensitive:           true,
+			},
+			"base_url": schema.StringAttribute{
+				Optional: true,
 			},
 		},
 	}
 }
 
-func (p *ScaffoldingProvider) Configure(ctx context.Context, req provider.ConfigureRequest, resp *provider.ConfigureResponse) {
-	var data ScaffoldingProviderModel
+func (p *skySQLProvider) Configure(ctx context.Context, req provider.ConfigureRequest, resp *provider.ConfigureResponse) {
+	accessToken := os.Getenv("TF_SKYSQL_API_ACCESS_TOKEN")
+	baseURL := os.Getenv("TF_SKYSQL_API_BASE_URL")
+
+	var data skySQLProviderModel
 
 	resp.Diagnostics.Append(req.Config.Get(ctx, &data)...)
 
@@ -52,30 +61,58 @@ func (p *ScaffoldingProvider) Configure(ctx context.Context, req provider.Config
 		return
 	}
 
-	// Configuration values are now available.
-	// if data.Endpoint.IsNull() { /* ... */ }
+	// Check configuration data, which should take precedence over
+	// environment variable data, if found.
+	if data.AccessToken.ValueString() != "" {
+		accessToken = data.AccessToken.ValueString()
+	}
+
+	if data.BaseURL.ValueString() != "" {
+		baseURL = data.BaseURL.ValueString()
+	}
+
+	if accessToken == "" {
+		resp.Diagnostics.AddError(
+			"Missing SkySQL Access Token Configuration",
+			"While configuring the provider, the API access token was not found in "+
+				"the TF_SKYSQL_API_ACCESS_TOKEN environment variable or provider "+
+				"configuration block access_token attribute.",
+		)
+		// Not returning early allows the logic to collect all errors.
+	}
+
+	if baseURL == "" {
+		resp.Diagnostics.AddError(
+			"Missing Endpoint Configuration",
+			"While configuring the provider, the endpoint was not found in "+
+				"the TF_SKYSQL_API_BASE_URL environment variable or provider "+
+				"configuration block base_url attribute.",
+		)
+		// Not returning early allows the logic to collect all errors.
+	}
 
 	// Example client configuration for data sources and resources
-	client := http.DefaultClient
+	client := skysql.New(baseURL, accessToken)
 	resp.DataSourceData = client
-	resp.ResourceData = client
+	//resp.ResourceData = client
 }
 
-func (p *ScaffoldingProvider) Resources(ctx context.Context) []func() resource.Resource {
-	return []func() resource.Resource{
-		NewExampleResource,
-	}
+func (p *skySQLProvider) Resources(ctx context.Context) []func() resource.Resource {
+	//return []func() resource.Resource{
+	//	NewExampleResource,
+	//}
+	return []func() resource.Resource{}
 }
 
-func (p *ScaffoldingProvider) DataSources(ctx context.Context) []func() datasource.DataSource {
+func (p *skySQLProvider) DataSources(ctx context.Context) []func() datasource.DataSource {
 	return []func() datasource.DataSource{
-		NewExampleDataSource,
+		NewProjectDataSource,
 	}
 }
 
 func New(version string) func() provider.Provider {
 	return func() provider.Provider {
-		return &ScaffoldingProvider{
+		return &skySQLProvider{
 			version: version,
 		}
 	}
