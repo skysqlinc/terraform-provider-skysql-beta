@@ -9,8 +9,31 @@ terraform {
 provider "skysql" {}
 
 
-data "skysql_projects" "projects" {}
+data "skysql_projects" "default" {}
 
-output "skysql_projects" {
-  value = data.skysql_projects.projects
+output "sky_projects" {
+  value = data.skysql_projects.default.projects
+}
+
+data "skysql_versions" "default" {}
+
+
+output "sky_versions" {
+  value = data.skysql_versions.default.versions
+}
+
+
+locals {
+  sky_versions_filtered = [
+    for item in data.skysql_versions.default.versions : item if item.product == "xpand"
+]
+}
+
+
+output "sky_versions_xpand" {
+  value = local.sky_versions_filtered
+}
+
+output "sky_versions_xpand_latest" {
+  value = local.sky_versions_filtered[0]
 }

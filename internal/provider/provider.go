@@ -106,7 +106,8 @@ func (p *skySQLProvider) Resources(ctx context.Context) []func() resource.Resour
 
 func (p *skySQLProvider) DataSources(ctx context.Context) []func() datasource.DataSource {
 	return []func() datasource.DataSource{
-		NewProjectDataSource,
+		NewProjectsDataSource,
+		NewVersionsDataSource,
 	}
 }
 
