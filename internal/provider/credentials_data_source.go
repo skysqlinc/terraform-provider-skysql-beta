@@ -42,7 +42,8 @@ func (d *CredentialsDataSource) Schema(ctx context.Context, req datasource.Schem
 				Computed: true,
 			},
 			"password": schema.StringAttribute{
-				Computed: true,
+				Computed:  true,
+				Sensitive: true,
 			},
 			"host": schema.StringAttribute{
 				Computed: true,

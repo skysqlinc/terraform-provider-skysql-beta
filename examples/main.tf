@@ -50,6 +50,7 @@ output "skysql_service" {
 
 output "skysql_credentials" {
   value = data.skysql_credentials.default
+  sensitive = true
 }
 
 
