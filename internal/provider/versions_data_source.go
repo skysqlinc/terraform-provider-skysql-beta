@@ -21,11 +21,11 @@ type VersionsDataSource struct {
 	client *skysql.Client
 }
 
-type versionDataSourceDataSourceModel struct {
-	Versions []versionModel `tfsdk:"versions"`
+type VersionDataSourceDataSourceModel struct {
+	Versions []VersionModel `tfsdk:"versions"`
 }
 
-type versionModel struct {
+type VersionModel struct {
 	Id              types.String `tfsdk:"id"`
 	Name            types.String `tfsdk:"name"`
 	Version         types.String `tfsdk:"version"`
@@ -103,7 +103,7 @@ func (d *VersionsDataSource) Configure(ctx context.Context, req datasource.Confi
 }
 
 func (d *VersionsDataSource) Read(ctx context.Context, req datasource.ReadRequest, resp *datasource.ReadResponse) {
-	var state versionDataSourceDataSourceModel
+	var state VersionDataSourceDataSourceModel
 
 	// Read Terraform configuration data into the model
 	resp.Diagnostics.Append(req.Config.Get(ctx, &state)...)
@@ -119,7 +119,7 @@ func (d *VersionsDataSource) Read(ctx context.Context, req datasource.ReadReques
 	}
 
 	for _, version := range versions {
-		versionState := versionModel{
+		versionState := VersionModel{
 			Id:              types.StringValue(version.Id),
 			Name:            types.StringValue(version.Name),
 			Version:         types.StringValue(version.Version),

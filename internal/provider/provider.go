@@ -23,8 +23,8 @@ type skySQLProvider struct {
 	version string
 }
 
-// skySQLProviderModel describes the provider data model.
-type skySQLProviderModel struct {
+// SkySQLProviderModel describes the provider data model.
+type SkySQLProviderModel struct {
 	BaseURL     types.String `tfsdk:"base_url"`
 	AccessToken types.String `tfsdk:"access_token"`
 }
@@ -53,7 +53,7 @@ func (p *skySQLProvider) Configure(ctx context.Context, req provider.ConfigureRe
 	accessToken := os.Getenv("TF_SKYSQL_API_ACCESS_TOKEN")
 	baseURL := os.Getenv("TF_SKYSQL_API_BASE_URL")
 
-	var data skySQLProviderModel
+	var data SkySQLProviderModel
 
 	resp.Diagnostics.Append(req.Config.Get(ctx, &data)...)
 
@@ -94,20 +94,20 @@ func (p *skySQLProvider) Configure(ctx context.Context, req provider.ConfigureRe
 	// Example client configuration for data sources and resources
 	client := skysql.New(baseURL, accessToken)
 	resp.DataSourceData = client
-	//resp.ResourceData = client
+	resp.ResourceData = client
 }
 
 func (p *skySQLProvider) Resources(ctx context.Context) []func() resource.Resource {
-	//return []func() resource.Resource{
-	//	NewExampleResource,
-	//}
-	return []func() resource.Resource{}
+	return []func() resource.Resource{
+		NewServiceResource,
+	}
 }
 
 func (p *skySQLProvider) DataSources(ctx context.Context) []func() datasource.DataSource {
 	return []func() datasource.DataSource{
 		NewProjectsDataSource,
 		NewVersionsDataSource,
+		NewServiceDataSource,
 	}
 }
 
