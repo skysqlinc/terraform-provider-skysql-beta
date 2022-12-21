@@ -21,12 +21,12 @@ type ProjectsDataSource struct {
 	client *skysql.Client
 }
 
-// projectDataSourceDataSourceModel describes the data source data model.
-type projectsDataSourceDataSourceModel struct {
-	Projects []projectModel `tfsdk:"projects"`
+// ProjectsDataSourceDataSourceModel describes the data source data model.
+type ProjectsDataSourceDataSourceModel struct {
+	Projects []ProjectModel `tfsdk:"projects"`
 }
 
-type projectModel struct {
+type ProjectModel struct {
 	Id          types.String `tfsdk:"id"`
 	Name        types.String `tfsdk:"name"`
 	Description types.String `tfsdk:"description"`
@@ -84,7 +84,7 @@ func (d *ProjectsDataSource) Configure(ctx context.Context, req datasource.Confi
 }
 
 func (d *ProjectsDataSource) Read(ctx context.Context, req datasource.ReadRequest, resp *datasource.ReadResponse) {
-	var state projectsDataSourceDataSourceModel
+	var state ProjectsDataSourceDataSourceModel
 
 	// Read Terraform configuration data into the model
 	resp.Diagnostics.Append(req.Config.Get(ctx, &state)...)
@@ -100,7 +100,7 @@ func (d *ProjectsDataSource) Read(ctx context.Context, req datasource.ReadReques
 	}
 
 	for _, project := range projects {
-		projectState := projectModel{
+		projectState := ProjectModel{
 			Id:          types.StringValue(project.Id),
 			Name:        types.StringValue(project.Name),
 			Description: types.StringValue(project.Description),

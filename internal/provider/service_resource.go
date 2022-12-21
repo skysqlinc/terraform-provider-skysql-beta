@@ -3,6 +3,7 @@ package provider
 import (
 	"context"
 	"fmt"
+	"github.com/hashicorp/terraform-plugin-framework-timeouts/resource/timeouts"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
@@ -34,23 +35,24 @@ type ServiceResource struct {
 
 // ServiceResourceModel describes the resource data model.
 type ServiceResourceModel struct {
-	ID              types.String `tfsdk:"id"`
-	Name            types.String `tfsdk:"name"`
-	ProjectID       types.String `tfsdk:"project_id"`
-	ServiceType     types.String `tfsdk:"service_type"`
-	Provider        types.String `tfsdk:"cloud_provider"`
-	Region          types.String `tfsdk:"region"`
-	Version         types.String `tfsdk:"version"`
-	Nodes           types.Int64  `tfsdk:"nodes"`
-	Architecture    types.String `tfsdk:"architecture"`
-	Size            types.String `tfsdk:"size"`
-	Topology        types.String `tfsdk:"topology"`
-	Storage         types.Int64  `tfsdk:"storage"`
-	VolumeIOPS      types.Int64  `tfsdk:"volume_iops"`
-	SSLEnabled      types.Bool   `tfsdk:"ssl_enabled"`
-	NoSQLEnabled    types.Bool   `tfsdk:"nosql_enabled"`
-	VolumeType      types.String `tfsdk:"volume_type"`
-	WaitForCreation types.Bool   `tfsdk:"wait_for_creation"`
+	ID              types.String   `tfsdk:"id"`
+	Name            types.String   `tfsdk:"name"`
+	ProjectID       types.String   `tfsdk:"project_id"`
+	ServiceType     types.String   `tfsdk:"service_type"`
+	Provider        types.String   `tfsdk:"cloud_provider"`
+	Region          types.String   `tfsdk:"region"`
+	Version         types.String   `tfsdk:"version"`
+	Nodes           types.Int64    `tfsdk:"nodes"`
+	Architecture    types.String   `tfsdk:"architecture"`
+	Size            types.String   `tfsdk:"size"`
+	Topology        types.String   `tfsdk:"topology"`
+	Storage         types.Int64    `tfsdk:"storage"`
+	VolumeIOPS      types.Int64    `tfsdk:"volume_iops"`
+	SSLEnabled      types.Bool     `tfsdk:"ssl_enabled"`
+	NoSQLEnabled    types.Bool     `tfsdk:"nosql_enabled"`
+	VolumeType      types.String   `tfsdk:"volume_type"`
+	WaitForCreation types.Bool     `tfsdk:"wait_for_creation"`
+	Timeouts        timeouts.Value `tfsdk:"timeouts"`
 }
 
 // ServiceResourceNamedPortModel is an endpoint port
@@ -120,6 +122,11 @@ func (r *ServiceResource) Schema(ctx context.Context, req resource.SchemaRequest
 			"wait_for_creation": schema.BoolAttribute{
 				Optional: true,
 			},
+		},
+		Blocks: map[string]schema.Block{
+			"timeouts": timeouts.Block(ctx, timeouts.Opts{
+				Create: true,
+			}),
 		},
 	}
 }
@@ -191,17 +198,25 @@ func (r *ServiceResource) Create(ctx context.Context, req resource.CreateRequest
 
 	// Save data into Terraform state
 	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
 
 	if data.WaitForCreation.ValueBool() {
 
-		err = sdkresource.RetryContext(ctx, defaultCreateTimeout, func() *sdkresource.RetryError {
+		createTimeout, diagsErr := data.Timeouts.Create(ctx, defaultCreateTimeout)
+		if diagsErr != nil {
+			diagsErr.AddError("Error creating service", fmt.Sprintf("Unable to create service, got error: %s", err))
+			resp.Diagnostics.Append(diagsErr...)
+		}
+
+		err = sdkresource.RetryContext(ctx, createTimeout, func() *sdkresource.RetryError {
 
 			service, err := r.client.GetServiceByID(ctx, service.ID)
 			if err != nil {
 				return sdkresource.NonRetryableError(fmt.Errorf("error retrieving service details: %v", err))
 			}
 
-			// block until install is complete
 			if service.Status != "ready" && service.Status != "failed" {
 				return sdkresource.RetryableError(fmt.Errorf("expected instance to be ready or failed state but was in state %s", service.Status))
 			}
@@ -249,6 +264,9 @@ func (r *ServiceResource) Read(ctx context.Context, req resource.ReadRequest, re
 	data.VolumeType = types.StringValue(service.StorageVolume.VolumeType)
 	// Save updated data into Terraform state
 	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
 }
 
 func (r *ServiceResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
@@ -303,8 +321,6 @@ func (r *ServiceResource) Update(ctx context.Context, req resource.UpdateRequest
 	state.Storage = types.Int64Value(int64(service.StorageVolume.Size))
 	state.VolumeIOPS = types.Int64Value(int64(service.StorageVolume.IOPS))
 	state.VolumeType = types.StringValue(service.StorageVolume.VolumeType)
-	// Save updated data into Terraform state
-	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
 	// Save updated data into Terraform state
 	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
 	if resp.Diagnostics.HasError() {

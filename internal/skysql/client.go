@@ -103,3 +103,48 @@ func (c *Client) DeleteServiceByID(ctx context.Context, serviceID string) error 
 
 	return nil
 }
+
+func (c *Client) GetServiceCredentialsByID(ctx context.Context, serviceID string) (*provisioning.Credentials, error) {
+	resp, err := c.HTTPClient.R().
+		SetHeader("Accept", "application/json").
+		SetResult(provisioning.Credentials{}).
+		SetContext(ctx).
+		Get("/provisioning/v1/services/" + serviceID + "/security/credentials")
+	if err != nil {
+		return nil, err
+	}
+	return resp.Result().(*provisioning.Credentials), err
+}
+
+func (c *Client) UpdateServiceAllowListByID(ctx context.Context, serviceID string, allowlist []provisioning.AllowListItem) ([]provisioning.AllowListItem, error) {
+	resp, err := c.HTTPClient.R().
+		SetHeader("Accept", "application/json").
+		SetResult(provisioning.ReadAllowListResponse{}).
+		SetContext(ctx).
+		SetBody(allowlist).
+		Put("/provisioning/v1/services/" + serviceID + "/security/allowlist")
+	if err != nil {
+		return nil, err
+	}
+
+	response := *resp.Result().(*provisioning.ReadAllowListResponse)
+
+	return response[0].AllowList, err
+}
+
+func (c *Client) ReadServiceAllowListByID(ctx context.Context, serviceID string) (provisioning.ReadAllowListResponse, error) {
+	resp, err := c.HTTPClient.R().
+		SetHeader("Accept", "application/json").
+		SetResult([]provisioning.AllowListItem{}).
+		SetContext(ctx).
+		SetResult(provisioning.ReadAllowListResponse{}).
+		Get("/provisioning/v1/services/" + serviceID + "/security/allowlist")
+	if err != nil {
+		return nil, err
+	}
+	response := *resp.Result().(*provisioning.ReadAllowListResponse)
+	if response == nil {
+		response = make(provisioning.ReadAllowListResponse, 0)
+	}
+	return response, err
+}

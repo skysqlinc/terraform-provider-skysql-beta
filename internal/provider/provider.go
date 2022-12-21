@@ -100,6 +100,7 @@ func (p *skySQLProvider) Configure(ctx context.Context, req provider.ConfigureRe
 func (p *skySQLProvider) Resources(ctx context.Context) []func() resource.Resource {
 	return []func() resource.Resource{
 		NewServiceResource,
+		NewServiceAllowListResource,
 	}
 }
 
@@ -108,6 +109,7 @@ func (p *skySQLProvider) DataSources(ctx context.Context) []func() datasource.Da
 		NewProjectsDataSource,
 		NewVersionsDataSource,
 		NewServiceDataSource,
+		NewCredentialsDataSource,
 	}
 }
 

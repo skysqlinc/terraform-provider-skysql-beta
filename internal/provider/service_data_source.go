@@ -10,7 +10,7 @@ import (
 )
 
 // Ensure provider defined types fully satisfy framework interfaces
-var _ datasource.DataSource = &VersionsDataSource{}
+var _ datasource.DataSource = &ServiceDataSource{}
 
 func NewServiceDataSource() datasource.DataSource {
 	return &ServiceDataSource{}
@@ -22,7 +22,7 @@ type ServiceDataSource struct {
 }
 
 type ServiceDataSourceModel struct {
-	ID                 types.String                     `tfsdk:"id"`
+	ID                 types.String                     `tfsdk:"service_id"`
 	Name               types.String                     `tfsdk:"name"`
 	Region             types.String                     `tfsdk:"region"`
 	Provider           types.String                     `tfsdk:"cloud_provider"`
@@ -73,7 +73,7 @@ func (d *ServiceDataSource) Metadata(ctx context.Context, req datasource.Metadat
 func (d *ServiceDataSource) Schema(ctx context.Context, req datasource.SchemaRequest, resp *datasource.SchemaResponse) {
 	resp.Schema = schema.Schema{
 		Attributes: map[string]schema.Attribute{
-			"id": schema.StringAttribute{
+			"service_id": schema.StringAttribute{
 				Required: true,
 			},
 			"name": schema.StringAttribute{
