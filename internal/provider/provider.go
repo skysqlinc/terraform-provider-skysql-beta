@@ -36,6 +36,7 @@ func (p *skySQLProvider) Metadata(ctx context.Context, req provider.MetadataRequ
 
 func (p *skySQLProvider) Schema(ctx context.Context, req provider.SchemaRequest, resp *provider.SchemaResponse) {
 	resp.Schema = schema.Schema{
+		Description: "The SkySQL terraform provider",
 		Attributes: map[string]schema.Attribute{
 			"access_token": schema.StringAttribute{
 				MarkdownDescription: "SkySQL API access token",

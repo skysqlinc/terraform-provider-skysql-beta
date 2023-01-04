@@ -34,19 +34,24 @@ func (d *CredentialsDataSource) Metadata(ctx context.Context, req datasource.Met
 
 func (d *CredentialsDataSource) Schema(ctx context.Context, req datasource.SchemaRequest, resp *datasource.SchemaResponse) {
 	resp.Schema = schema.Schema{
+		Description: "Returnes a default credentials for a SkySQL service",
 		Attributes: map[string]schema.Attribute{
 			"service_id": schema.StringAttribute{
-				Required: true,
+				Required:    true,
+				Description: "The ID of the SkySQL service",
 			},
 			"username": schema.StringAttribute{
-				Computed: true,
+				Computed:    true,
+				Description: "The database root username",
 			},
 			"password": schema.StringAttribute{
-				Computed:  true,
-				Sensitive: true,
+				Computed:    true,
+				Sensitive:   true,
+				Description: "The database root user password",
 			},
 			"host": schema.StringAttribute{
-				Computed: true,
+				Computed:    true,
+				Description: "The database root user host",
 			},
 		},
 	}

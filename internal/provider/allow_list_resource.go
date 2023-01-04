@@ -47,25 +47,31 @@ func (r *ServiceAllowListResource) Metadata(ctx context.Context, req resource.Me
 
 func (r *ServiceAllowListResource) Schema(ctx context.Context, req resource.SchemaRequest, resp *resource.SchemaResponse) {
 	resp.Schema = schema.Schema{
+		Description: "Manages the allow list for a service",
 		Attributes: map[string]schema.Attribute{
 			"service_id": schema.StringAttribute{
-				Required: true,
+				Required:    true,
+				Description: "The ID of the service to manage the allow list for",
 			},
 			"allow_list": schema.ListNestedAttribute{
-				Required: true,
+				Required:    true,
+				Description: "The list of IP addresses with comments to allow access to the service",
 				NestedObject: schema.NestedAttributeObject{
 					Attributes: map[string]schema.Attribute{
 						"ip": schema.StringAttribute{
-							Required: true,
+							Required:    true,
+							Description: "The IP address to allow access to the service. The IP must be in a valid CIDR format",
 						},
 						"comment": schema.StringAttribute{
-							Optional: true,
+							Optional:    true,
+							Description: "A comment to describe the IP address",
 						},
 					},
 				},
 			},
 			"wait_for_creation": schema.BoolAttribute{
-				Optional: true,
+				Optional:    true,
+				Description: "If true, the provider will wait for the service to be updated before returning. ",
 			},
 		},
 		Blocks: map[string]schema.Block{

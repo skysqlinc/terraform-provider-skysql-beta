@@ -67,60 +67,78 @@ func (r *ServiceResource) Metadata(ctx context.Context, req resource.MetadataReq
 
 func (r *ServiceResource) Schema(ctx context.Context, req resource.SchemaRequest, resp *resource.SchemaResponse) {
 	resp.Schema = schema.Schema{
+		Description: "Creates and manages a service in SkySQL",
 		Attributes: map[string]schema.Attribute{
 			"id": schema.StringAttribute{
 				Computed: true,
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.UseStateForUnknown(),
 				},
+				Description: "The ID of the service",
 			},
 			"name": schema.StringAttribute{
-				Required: true,
+				Required:    true,
+				Description: "The name of the service",
 			},
 			"project_id": schema.StringAttribute{
-				Required: true,
+				Required:    true,
+				Description: "The ID of the project to create the service in",
 			},
 			"service_type": schema.StringAttribute{
-				Required: true,
+				Required:    true,
+				Description: "The type of service to create. Valid values are: analytical or transactional",
 			},
 			"cloud_provider": schema.StringAttribute{
-				Required: true,
+				Required:    true,
+				Description: "The cloud provider to create the service in. Valid values are: aws or gcp",
 			},
 			"region": schema.StringAttribute{
-				Required: true,
+				Required:    true,
+				Description: "The region to create the service in. Value should be valid for a specific cloud provider",
 			},
 			"version": schema.StringAttribute{
-				Required: true,
+				Required:    true,
+				Description: "The server version",
 			},
 			"nodes": schema.Int64Attribute{
-				Required: true,
+				Required:    true,
+				Description: "The number of nodes",
 			},
 			"architecture": schema.StringAttribute{
-				Optional: true,
+				Optional:    true,
+				Description: "The architecture of the service. Valid values are: amd64 or arm64",
 			},
 			"size": schema.StringAttribute{
-				Required: true,
+				Required:    true,
+				Description: "The size of the service. Valid values are: sky-2x4, sky-2x8 etc",
 			},
 			"topology": schema.StringAttribute{
-				Required: true,
+				Required:    true,
+				Description: "The topology of the service. Valid values are: masterslave, standalone, xpand-direct, columnstore, lakehouse",
 			},
 			"storage": schema.Int64Attribute{
-				Required: true,
+				Required:    true,
+				Description: "The storage size in GB. Valid values are: 100, 200, 300, 400, 500, 600, 700, 800, 900, 1000, 2000, 3000, 4000, 5000, 6000, 7000, 8000, 9000, 10000",
 			},
 			"volume_iops": schema.Int64Attribute{
-				Optional: true,
+				Optional:    true,
+				Description: "The volume IOPS. This is only applicable for AWS",
 			},
 			"ssl_enabled": schema.BoolAttribute{
-				Required: true,
+				Required:    true,
+				Description: "Whether to enable SSL. Valid values are: true or false",
 			},
 			"nosql_enabled": schema.BoolAttribute{
-				Optional: true,
+				Optional:    true,
+				Description: "Whether to enable NoSQL. Valid values are: true or false",
 			},
 			"volume_type": schema.StringAttribute{
-				Required: true,
+				Required:    true,
+				Description: "The volume type. Valid values are: gp2,gp3,io1,io2. This is only applicable for AWS",
 			},
 			"wait_for_creation": schema.BoolAttribute{
-				Optional: true,
+				Optional:    true,
+				Description: "Whether to wait for the service to be created. Valid values are: true or false",
 			},
 		},
 		Blocks: map[string]schema.Block{

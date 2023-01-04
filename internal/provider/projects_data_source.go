@@ -39,22 +39,27 @@ func (d *ProjectsDataSource) Metadata(ctx context.Context, req datasource.Metada
 
 func (d *ProjectsDataSource) Schema(ctx context.Context, req datasource.SchemaRequest, resp *datasource.SchemaResponse) {
 	resp.Schema = schema.Schema{
+		Description: "Retrieve the list of projects. Project is a way of grouping the services.",
 		Attributes: map[string]schema.Attribute{
 			"projects": schema.ListNestedAttribute{
 				Computed: true,
 				NestedObject: schema.NestedAttributeObject{
 					Attributes: map[string]schema.Attribute{
 						"id": schema.StringAttribute{
-							Computed: true,
+							Computed:    true,
+							Description: "The ID of the project.",
 						},
 						"name": schema.StringAttribute{
-							Computed: true,
+							Computed:    true,
+							Description: "The name of the project.",
 						},
 						"description": schema.StringAttribute{
-							Computed: true,
+							Computed:    true,
+							Description: "The description of the project.",
 						},
 						"is_default": schema.BoolAttribute{
-							Computed: true,
+							Computed:    true,
+							Description: "Whether the project is the default project. ",
 						},
 					},
 				},

@@ -1,31 +1,3 @@
-
-
----
-page_title: "Provider: MariaDB SkySQL DBaaS API Terraform Provider"
-description: |-
-The MariaDB SkySQL DBaaS API Terraform Provider allows database services in MariaDB SkySQL to be managed using Terraform.---
-
-# SKYSQL-V2 Provider
-
-The MariaDB SkySQL DBaaS API Terraform Provider allows database services in MariaDB SkySQL to be managed using Terraform:
-
-* It allows SkySQL services to be configured using Terraform's declarative language
-
-* It automatically provisions new SkySQL services when the Terraform configuration is applied
-
-* It automatically tears down SkySQL services when the Terraform configuration is destroyed
-
-[Terraform](https://www.terraform.io/) is an open source infrastructure-as-code (IaC) utility.
-
-The MariaDB SkySQL DBaaS API Terraform Provider is a Technical Preview. Software in Tech Preview should not be used for production workloads.
-
-Alternatively, SkySQL services can be managed interactively using your web browser and the [SkySQL Portal](https://skysql.mariadb.com/dashboard).
-
-Use the navigation to the left to read about the available resources.
-
-## Example Usage
-
-```terraform
 terraform {
   required_providers {
     skysql = {
@@ -115,24 +87,3 @@ resource "skysql_allow_list" "default" {
 output "skysql_cmd" {
   value = "mariadb --host ${data.skysql_service.default.fqdn} --port 3306 --user ${data.skysql_service.default.service_id} -p --ssl-ca ~/Downloads/skysql_chain_2022.pem"
 }
-```
-
-## Limitations
-
-* The terraform resource `skysql_service` doesn't support updates. If you need to change the configuration of a service, you need to destroy the service and create a new one.
-
-### Secrets and Terraform state
-
-Some resources that can be created with this provider, like `skysql_credentials`, are
-considered "secrets", and as such are marked by this provider as _sensitive_, so to
-help practitioner to not accidentally leak their value in logs or other form of output.
-
-It's important to remember that the values that constitute the "state" of those
-resources will be stored in the [Terraform state](https://www.terraform.io/language/state) file.
-This includes the "secrets", that will be part of the state file *unencrypted*.
-
-Because of these limitations, **use of these resources for production deployments is _not_ recommended**.
-Failing that, **protecting the content of the state file is strongly recommended**.
-
-The more general advice is that it's better to generate "secrets" outside of Terraform,
-and then distribute them securely to the system where Terraform will make use of them.

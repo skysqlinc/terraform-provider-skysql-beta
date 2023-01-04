@@ -72,63 +72,83 @@ func (d *ServiceDataSource) Metadata(ctx context.Context, req datasource.Metadat
 
 func (d *ServiceDataSource) Schema(ctx context.Context, req datasource.SchemaRequest, resp *datasource.SchemaResponse) {
 	resp.Schema = schema.Schema{
+		Description: "Returns an full SkySQL service details",
 		Attributes: map[string]schema.Attribute{
 			"service_id": schema.StringAttribute{
-				Required: true,
+				Required:    true,
+				Description: "The ID of the service",
 			},
 			"name": schema.StringAttribute{
-				Computed: true,
+				Computed:    true,
+				Description: "The name of the service",
 			},
 			"region": schema.StringAttribute{
-				Computed: true,
+				Computed:    true,
+				Description: "The region where the service is deployed",
 			},
 			"cloud_provider": schema.StringAttribute{
-				Computed: true,
+				Computed:    true,
+				Description: "The cloud provider where the service is deployed",
 			},
 			"tier": schema.StringAttribute{
-				Computed: true,
+				Computed:    true,
+				Description: "The tier of the service. Possible values are: foundation or power",
 			},
 			"topology": schema.StringAttribute{
-				Computed: true,
+				Computed:    true,
+				Description: "The topology of the service. Possible values are: masterslave, standalone, xpand-direct, columnstore, lakehouse",
 			},
 			"version": schema.StringAttribute{
-				Computed: true,
+				Computed:    true,
+				Description: "The database service version.",
 			},
 			"architecture": schema.StringAttribute{
-				Computed: true,
+				Computed:    true,
+				Description: "The CPU architecture of the service. Possible values are: amd64 or arm64",
 			},
 			"size": schema.StringAttribute{
-				Computed: true,
+				Computed:    true,
+				Description: "The size of the service. Possible values are: sky-2x4, sky-2x8 etc",
 			},
 			"nodes": schema.Int64Attribute{
-				Computed: true,
+				Computed:    true,
+				Description: "The number of nodes in the service.",
 			},
 			"ssl_enabled": schema.BoolAttribute{
-				Computed: true,
+				Computed:    true,
+				Description: "Indicates whether SSL is enabled for the service.",
 			},
 			"nosql_enabled": schema.BoolAttribute{
-				Computed: true,
+				Computed:    true,
+				Description: "Indicates whether NoSQL is enabled for the service.",
 			},
 			"fqdn": schema.StringAttribute{
-				Computed: true,
+				Computed:    true,
+				Description: "The fully qualified domain name of the service.",
 			},
 			"status": schema.StringAttribute{
-				Computed: true,
+				Computed:    true,
+				Description: "The service status",
 			},
 			"created_on": schema.Int64Attribute{
-				Computed: true,
+				Computed:    true,
+				Description: "The timestamp when the service was created.",
 			},
 			"updated_on": schema.Int64Attribute{
-				Computed: true,
+				Computed:    true,
+				Description: "The timestamp when the service was last updated.",
 			},
 			"created_by": schema.StringAttribute{
-				Computed: true,
+				Computed:    true,
+				Description: "The user who created the service.",
 			},
 			"updated_by": schema.StringAttribute{
-				Computed: true,
+				Computed:    true,
+				Description: "The user who last updated the service.",
 			},
 			"endpoints": schema.ListNestedAttribute{
-				Computed: true,
+				Computed:    true,
+				Description: "The list of endpoints for the service. Each endpoint has a name and a list of ports. ",
 				NestedObject: schema.NestedAttributeObject{
 					Attributes: map[string]schema.Attribute{
 						"name": schema.StringAttribute{
@@ -154,34 +174,44 @@ func (d *ServiceDataSource) Schema(ctx context.Context, req datasource.SchemaReq
 				},
 			},
 			"storage_volume": schema.SingleNestedAttribute{
-				Computed: true,
+				Computed:    true,
+				Description: "The storage volume for the service.",
 				Attributes: map[string]schema.Attribute{
 					"size": schema.Int64Attribute{
-						Computed: true,
+						Computed:    true,
+						Description: "The size of the storage volume in GB.",
 					},
 					"volume_type": schema.StringAttribute{
-						Computed: true,
+						Computed:    true,
+						Description: "The type of the storage volume. Possible values are: gp2, io1 etc",
 					},
 					"iops": schema.Int64Attribute{
-						Computed: true,
-						Optional: true},
+						Computed:    true,
+						Optional:    true,
+						Description: "The number of IOPS for the storage volume. This is only applicable for io1 volumes.",
+					},
 				},
 			},
 			"outbound_ips": schema.ListAttribute{
 				Computed:    true,
 				ElementType: types.StringType,
+				Description: "The list of outbound IP addresses for the service.",
 			},
 			"is_active": schema.BoolAttribute{
-				Computed: true,
+				Computed:    true,
+				Description: "Indicates whether the service is active.",
 			},
 			"service_type": schema.StringAttribute{
-				Computed: true,
+				Computed:    true,
+				Description: "The service type. Possible values: analytical or transactional",
 			},
 			"replication_enabled": schema.BoolAttribute{
-				Computed: true,
+				Computed:    true,
+				Description: "Indicates whether replication is enabled for the service.",
 			},
 			"primary_host": schema.StringAttribute{
-				Computed: true,
+				Computed:    true,
+				Description: "The primary host for the service. This is only applicable for replication enabled services.",
 			},
 		},
 	}

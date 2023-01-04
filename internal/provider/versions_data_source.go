@@ -43,37 +43,47 @@ func (d *VersionsDataSource) Metadata(ctx context.Context, req datasource.Metada
 
 func (d *VersionsDataSource) Schema(ctx context.Context, req datasource.SchemaRequest, resp *datasource.SchemaResponse) {
 	resp.Schema = schema.Schema{
+		Description: "SkySQL server versions",
 		Attributes: map[string]schema.Attribute{
 			"versions": schema.ListNestedAttribute{
 				Computed: true,
 				NestedObject: schema.NestedAttributeObject{
 					Attributes: map[string]schema.Attribute{
 						"id": schema.StringAttribute{
-							Computed: true,
+							Computed:    true,
+							Description: "The ID of the version",
 						},
 						"name": schema.StringAttribute{
-							Computed: true,
+							Computed:    true,
+							Description: "The name of the version",
 						},
 						"version": schema.StringAttribute{
-							Computed: true,
+							Computed:    true,
+							Description: "The version display name",
 						},
 						"topology": schema.StringAttribute{
-							Computed: true,
+							Computed:    true,
+							Description: "The topology that uses the version",
 						},
 						"product": schema.StringAttribute{
-							Computed: true,
+							Computed:    true,
+							Description: "The product that uses the version",
 						},
 						"display_name": schema.StringAttribute{
-							Computed: true,
+							Computed:    true,
+							Description: "The display name of the version",
 						},
 						"is_major": schema.BoolAttribute{
-							Computed: true,
+							Computed:    true,
+							Description: "Whether the version is a major version",
 						},
 						"release_date": schema.StringAttribute{
-							Computed: true,
+							Computed:    true,
+							Description: "The release date of the version",
 						},
 						"release_notes_url": schema.StringAttribute{
-							Computed: true,
+							Computed:    true,
+							Description: "The URL to the release notes of the version",
 						},
 					},
 				},
