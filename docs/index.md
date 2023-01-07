@@ -66,19 +66,22 @@ output "skysql_projects" {
 
 # Create a service
 resource "skysql_service" "default" {
-  project_id     = data.skysql_projects.default.projects[0].id
+  project_id     = "e95584aa-3d0d-4513-8cbe-5c63d36a2baa"
   service_type   = "transactional"
   topology       = "standalone"
-  cloud_provider = "aws"
-  region         = "us-east-1"
-  name           = "vf-test"
+  cloud_provider = "gcp"
+  region         = "us-central1"
+  name           = "vf-test-gcp"
   architecture   = "amd64"
   nodes          = 1
   size           = "sky-2x8"
   storage        = 100
   ssl_enabled    = true
   version        = local.sky_versions_filtered[0].name
-  volume_type    = "gp2"
+  # [Optional] Below you can find example with optional parameters how to configure a privatelink connection
+  endpoint_mechanism        = "privatelink"
+  endpoint_allowed_accounts = ["gcp-project-id"]
+  # [/Optional]
   # The service create is an asynchronous operation.
   # if you want to wait for the service to be created set wait_for_creation to true
   wait_for_creation = true
