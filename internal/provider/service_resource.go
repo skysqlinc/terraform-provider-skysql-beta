@@ -7,13 +7,16 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/boolplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/int64planmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/listplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	sdkresource "github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
-	"github.com/mariadb-corporation/terraform-provider-skysql-v2/internal/skysql"
-	"github.com/mariadb-corporation/terraform-provider-skysql-v2/internal/skysql/provisioning"
+	"github.com/mariadb-corporation/terraform-provider-skysql-beta/internal/skysql"
+	"github.com/mariadb-corporation/terraform-provider-skysql-beta/internal/skysql/provisioning"
 	"time"
 )
 
@@ -53,12 +56,14 @@ type ServiceResourceModel struct {
 	VolumeType      types.String   `tfsdk:"volume_type"`
 	WaitForCreation types.Bool     `tfsdk:"wait_for_creation"`
 	Timeouts        timeouts.Value `tfsdk:"timeouts"`
+	Mechanism       types.String   `tfsdk:"endpoint_mechanism"`
+	AllowedAccounts types.List     `tfsdk:"endpoint_allowed_accounts"`
 }
 
 // ServiceResourceNamedPortModel is an endpoint port
 type ServiceResourceNamedPortModel struct {
-	Name string `tfsdk:"name"`
-	Port int    `tfsdk:"port"`
+	Name types.String `tfsdk:"name"`
+	Port types.Int64  `tfsdk:"port"`
 }
 
 func (r *ServiceResource) Metadata(ctx context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
@@ -79,66 +84,126 @@ func (r *ServiceResource) Schema(ctx context.Context, req resource.SchemaRequest
 			"name": schema.StringAttribute{
 				Required:    true,
 				Description: "The name of the service",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.RequiresReplace(),
+				},
 			},
 			"project_id": schema.StringAttribute{
 				Required:    true,
 				Description: "The ID of the project to create the service in",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.RequiresReplace(),
+				},
 			},
 			"service_type": schema.StringAttribute{
 				Required:    true,
 				Description: "The type of service to create. Valid values are: analytical or transactional",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.RequiresReplace(),
+				},
 			},
 			"cloud_provider": schema.StringAttribute{
 				Required:    true,
 				Description: "The cloud provider to create the service in. Valid values are: aws or gcp",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.RequiresReplace(),
+				},
 			},
 			"region": schema.StringAttribute{
 				Required:    true,
 				Description: "The region to create the service in. Value should be valid for a specific cloud provider",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.RequiresReplace(),
+				},
 			},
 			"version": schema.StringAttribute{
 				Required:    true,
 				Description: "The server version",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.RequiresReplace(),
+				},
 			},
 			"nodes": schema.Int64Attribute{
 				Required:    true,
 				Description: "The number of nodes",
+				PlanModifiers: []planmodifier.Int64{
+					int64planmodifier.RequiresReplace(),
+				},
 			},
 			"architecture": schema.StringAttribute{
 				Optional:    true,
 				Description: "The architecture of the service. Valid values are: amd64 or arm64",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.RequiresReplace(),
+				},
 			},
 			"size": schema.StringAttribute{
 				Required:    true,
 				Description: "The size of the service. Valid values are: sky-2x4, sky-2x8 etc",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.RequiresReplace(),
+				},
 			},
 			"topology": schema.StringAttribute{
 				Required:    true,
 				Description: "The topology of the service. Valid values are: masterslave, standalone, xpand-direct, columnstore, lakehouse",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.RequiresReplace(),
+				},
 			},
 			"storage": schema.Int64Attribute{
 				Required:    true,
 				Description: "The storage size in GB. Valid values are: 100, 200, 300, 400, 500, 600, 700, 800, 900, 1000, 2000, 3000, 4000, 5000, 6000, 7000, 8000, 9000, 10000",
+				PlanModifiers: []planmodifier.Int64{
+					int64planmodifier.RequiresReplace(),
+				},
 			},
 			"volume_iops": schema.Int64Attribute{
 				Optional:    true,
 				Description: "The volume IOPS. This is only applicable for AWS",
+				PlanModifiers: []planmodifier.Int64{
+					int64planmodifier.RequiresReplace(),
+				},
 			},
 			"ssl_enabled": schema.BoolAttribute{
 				Required:    true,
 				Description: "Whether to enable SSL. Valid values are: true or false",
+				PlanModifiers: []planmodifier.Bool{
+					boolplanmodifier.RequiresReplace(),
+				},
 			},
 			"nosql_enabled": schema.BoolAttribute{
 				Optional:    true,
 				Description: "Whether to enable NoSQL. Valid values are: true or false",
+				PlanModifiers: []planmodifier.Bool{
+					boolplanmodifier.RequiresReplace(),
+				},
 			},
 			"volume_type": schema.StringAttribute{
-				Required:    true,
+				Optional:    true,
 				Description: "The volume type. Valid values are: gp2,gp3,io1,io2. This is only applicable for AWS",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.RequiresReplace(),
+				},
 			},
 			"wait_for_creation": schema.BoolAttribute{
 				Optional:    true,
 				Description: "Whether to wait for the service to be created. Valid values are: true or false",
+			},
+			"endpoint_mechanism": schema.StringAttribute{
+				Optional:    true,
+				Description: "The endpoint mechanism to use. Valid values are: privatelink or nlb",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.RequiresReplace(),
+				},
+			},
+			"endpoint_allowed_accounts": schema.ListAttribute{
+				Optional:    true,
+				Description: "The list of cloud accounts (aws account ids or gcp projects) that are allowed to access the service",
+				ElementType: types.StringType,
+				PlanModifiers: []planmodifier.List{
+					listplanmodifier.RequiresReplace(),
+				},
 			},
 		},
 		Blocks: map[string]schema.Block{
@@ -195,6 +260,11 @@ func (r *ServiceResource) Create(ctx context.Context, req resource.CreateRequest
 		SSLEnabled:   data.SSLEnabled.ValueBool(),
 		NoSQLEnabled: data.NoSQLEnabled.ValueBool(),
 		VolumeType:   data.VolumeType.ValueString(),
+		Mechanism:    data.Mechanism.ValueString(),
+	}
+
+	for _, element := range data.AllowedAccounts.Elements() {
+		createServiceRequest.AllowedAccounts = append(createServiceRequest.AllowedAccounts, element.String())
 	}
 
 	service, err := r.client.CreateService(ctx, createServiceRequest)
@@ -303,22 +373,6 @@ func (r *ServiceResource) Update(ctx context.Context, req resource.UpdateRequest
 
 	if resp.Diagnostics.HasError() {
 		return
-	}
-
-	if plan.Nodes.ValueInt64() != state.Nodes.ValueInt64() {
-
-	}
-
-	if plan.Size.ValueString() != state.Size.ValueString() {
-
-	}
-
-	if plan.Storage.ValueInt64() != state.Storage.ValueInt64() {
-
-	}
-
-	if plan.VolumeIOPS.ValueInt64() != state.VolumeIOPS.ValueInt64() {
-
 	}
 
 	service, err := r.client.GetServiceByID(ctx, state.ID.ValueString())

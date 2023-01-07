@@ -6,7 +6,7 @@ import (
 	"log"
 
 	"github.com/hashicorp/terraform-plugin-framework/providerserver"
-	"github.com/mariadb-corporation/terraform-provider-skysql-v2/internal/provider"
+	"github.com/mariadb-corporation/terraform-provider-skysql-beta/internal/provider"
 )
 
 // Run "go generate" to format example terraform files and generate the docs for the registry/website
@@ -35,7 +35,7 @@ func main() {
 	flag.Parse()
 
 	opts := providerserver.ServeOpts{
-		Address: "registry.terraform.io/mariadb-corporation/skysql-v2",
+		Address: "registry.terraform.io/mariadb-corporation/skysql-beta",
 		Debug:   debug,
 	}
 

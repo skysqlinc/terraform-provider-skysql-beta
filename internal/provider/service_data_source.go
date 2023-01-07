@@ -6,7 +6,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/types"
-	"github.com/mariadb-corporation/terraform-provider-skysql-v2/internal/skysql"
+	"github.com/mariadb-corporation/terraform-provider-skysql-beta/internal/skysql"
 )
 
 // Ensure provider defined types fully satisfy framework interfaces
@@ -50,8 +50,12 @@ type ServiceDataSourceModel struct {
 }
 
 type ServiceEndpointDataSourceModel struct {
-	Name  types.String                  `tfsdk:"name"`
-	Ports []EndpointPortDataSourceModel `tfsdk:"ports"`
+	Name            types.String                  `tfsdk:"name"`
+	Ports           []EndpointPortDataSourceModel `tfsdk:"ports"`
+	Mechanism       types.String                  `tfsdk:"mechanism"`
+	AllowedAccounts types.List                    `tfsdk:"allowed_accounts"`
+	EndpointService types.String                  `tfsdk:"endpoint_service"`
+	Visibility      types.String                  `tfsdk:"visibility"`
 }
 
 type EndpointPortDataSourceModel struct {
@@ -169,6 +173,19 @@ func (d *ServiceDataSource) Schema(ctx context.Context, req datasource.SchemaReq
 									},
 								},
 							},
+						},
+						"mechanism": schema.StringAttribute{
+							Computed: true,
+						},
+						"visibility": schema.StringAttribute{
+							Computed: true,
+						},
+						"endpoint_service": schema.StringAttribute{
+							Computed: true,
+						},
+						"allowed_accounts": schema.ListAttribute{
+							Computed:    true,
+							ElementType: types.StringType,
 						},
 					},
 				},

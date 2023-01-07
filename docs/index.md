@@ -5,7 +5,7 @@ page_title: "Provider: MariaDB SkySQL DBaaS API Terraform Provider"
 description: |-
 The MariaDB SkySQL DBaaS API Terraform Provider allows database services in MariaDB SkySQL to be managed using Terraform.---
 
-# SKYSQL-V2 Provider
+# SKYSQL-BETA Provider
 
 The MariaDB SkySQL DBaaS API Terraform Provider allows database services in MariaDB SkySQL to be managed using Terraform:
 
@@ -23,13 +23,22 @@ Alternatively, SkySQL services can be managed interactively using your web brows
 
 Use the navigation to the left to read about the available resources.
 
+## Configure the terraform provider
+
+1. Go to MariaDB ID: https://id.mariadb.com/account/api/ and generate an API key
+2. Set environment variables:
+```bash
+    export TF_SKYSQL_API_ACCESS_TOKEN=[SKYSQL API access token]
+    export TF_SKYSQL_API_BASE_URL=https://api.mariadb.com
+```
+
 ## Example Usage
 
 ```terraform
 terraform {
   required_providers {
     skysql = {
-      source = "registry.terraform.io/mariadb-corporation/skysql-v2"
+      source = "registry.terraform.io/mariadb-corporation/skysql-beta"
     }
   }
 }

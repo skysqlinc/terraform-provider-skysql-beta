@@ -23,6 +23,15 @@ Alternatively, SkySQL services can be managed interactively using your web brows
 
 Use the navigation to the left to read about the available resources.
 
+## Configure the terraform provider
+
+1. Go to MariaDB ID: https://id.mariadb.com/account/api/ and generate an API key
+2. Set environment variables:
+```bash
+    export TF_SKYSQL_API_ACCESS_TOKEN=[SKYSQL API access token]
+    export TF_SKYSQL_API_BASE_URL=https://api.mariadb.com
+```
+
 ## Example Usage
 
 {{ tffile "examples/provider/provider.tf" }}

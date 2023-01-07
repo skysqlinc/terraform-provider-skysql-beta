@@ -1,4 +1,4 @@
-module github.com/mariadb-corporation/terraform-provider-skysql-v2
+module github.com/mariadb-corporation/terraform-provider-skysql-beta
 
 go 1.19
 

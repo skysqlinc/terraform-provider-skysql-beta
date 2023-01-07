@@ -1,5 +1,5 @@
 ---
-page_title: "skysql_service Data Source - terraform-provider-skysql-v2"
+page_title: "skysql_service Data Source - terraform-provider-skysql-beta"
 subcategory: ""
 description: |-
   Returns an full SkySQL service details
@@ -57,8 +57,12 @@ data "skysql_service" "default" {
 
 Read-Only:
 
+- `allowed_accounts` (List of String)
+- `endpoint_service` (String)
+- `mechanism` (String)
 - `name` (String)
 - `ports` (Attributes List) (see [below for nested schema](#nestedatt--endpoints--ports))
+- `visibility` (String)
 
 <a id="nestedatt--endpoints--ports"></a>
 ### Nested Schema for `endpoints.ports`

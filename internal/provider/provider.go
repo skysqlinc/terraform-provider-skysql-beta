@@ -2,7 +2,7 @@ package provider
 
 import (
 	"context"
-	"github.com/mariadb-corporation/terraform-provider-skysql-v2/internal/skysql"
+	"github.com/mariadb-corporation/terraform-provider-skysql-beta/internal/skysql"
 	"os"
 
 	"github.com/hashicorp/terraform-plugin-framework/datasource"

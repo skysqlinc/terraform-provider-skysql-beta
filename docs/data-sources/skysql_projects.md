@@ -1,5 +1,5 @@
 ---
-page_title: "skysql_projects Data Source - terraform-provider-skysql-v2"
+page_title: "skysql_projects Data Source - terraform-provider-skysql-beta"
 subcategory: ""
 description: |-
   Retrieve the list of projects. Project is a way of grouping the services.

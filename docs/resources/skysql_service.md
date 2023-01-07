@@ -1,5 +1,5 @@
 ---
-page_title: "skysql_service Resource - terraform-provider-skysql-v2"
+page_title: "skysql_service Resource - terraform-provider-skysql-beta"
 subcategory: ""
 description: |-
   Creates and manages a service in SkySQL
@@ -50,14 +50,16 @@ resource "skysql_service" "default" {
 - `storage` (Number) The storage size in GB. Valid values are: 100, 200, 300, 400, 500, 600, 700, 800, 900, 1000, 2000, 3000, 4000, 5000, 6000, 7000, 8000, 9000, 10000
 - `topology` (String) The topology of the service. Valid values are: masterslave, standalone, xpand-direct, columnstore, lakehouse
 - `version` (String) The server version
-- `volume_type` (String) The volume type. Valid values are: gp2,gp3,io1,io2. This is only applicable for AWS
 
 ### Optional
 
 - `architecture` (String) The architecture of the service. Valid values are: amd64 or arm64
+- `endpoint_allowed_accounts` (List of String) The list of cloud accounts (aws account ids or gcp projects) that are allowed to access the service
+- `endpoint_mechanism` (String) The endpoint mechanism to use. Valid values are: privatelink or nlb
 - `nosql_enabled` (Boolean) Whether to enable NoSQL. Valid values are: true or false
 - `timeouts` (Block, Optional) (see [below for nested schema](#nestedblock--timeouts))
 - `volume_iops` (Number) The volume IOPS. This is only applicable for AWS
+- `volume_type` (String) The volume type. Valid values are: gp2,gp3,io1,io2. This is only applicable for AWS
 - `wait_for_creation` (Boolean) Whether to wait for the service to be created. Valid values are: true or false
 
 ### Read-Only
