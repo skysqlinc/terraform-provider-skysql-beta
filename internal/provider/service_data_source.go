@@ -53,7 +53,7 @@ type ServiceEndpointDataSourceModel struct {
 	Name            types.String                  `tfsdk:"name"`
 	Ports           []EndpointPortDataSourceModel `tfsdk:"ports"`
 	Mechanism       types.String                  `tfsdk:"mechanism"`
-	AllowedAccounts types.List                    `tfsdk:"allowed_accounts"`
+	AllowedAccounts []types.String                `tfsdk:"allowed_accounts"`
 	EndpointService types.String                  `tfsdk:"endpoint_service"`
 	Visibility      types.String                  `tfsdk:"visibility"`
 }
@@ -299,11 +299,18 @@ func (d *ServiceDataSource) Read(ctx context.Context, req datasource.ReadRequest
 	data.Endpoints = make([]ServiceEndpointDataSourceModel, len(service.Endpoints))
 	for i := range service.Endpoints {
 		data.Endpoints[i].Name = types.StringValue(service.Endpoints[i].Name)
+		data.Endpoints[i].Mechanism = types.StringValue(service.Endpoints[i].Mechanism)
+		data.Endpoints[i].Visibility = types.StringValue(service.Endpoints[i].Visibility)
+		data.Endpoints[i].EndpointService = types.StringValue(service.Endpoints[i].EndpointService)
 		data.Endpoints[i].Ports = make([]EndpointPortDataSourceModel, len(service.Endpoints[i].Ports))
 		for j := range service.Endpoints[i].Ports {
 			data.Endpoints[i].Ports[j].Name = types.StringValue(service.Endpoints[i].Ports[j].Name)
 			data.Endpoints[i].Ports[j].Port = types.Int64Value(int64(service.Endpoints[i].Ports[j].Port))
 			data.Endpoints[i].Ports[j].Purpose = types.StringValue(service.Endpoints[i].Ports[j].Purpose)
+		}
+		data.Endpoints[i].AllowedAccounts = make([]types.String, len(service.Endpoints[i].AllowedAccounts))
+		for a := range service.Endpoints[i].AllowedAccounts {
+			data.Endpoints[i].AllowedAccounts[a] = types.StringValue(service.Endpoints[i].AllowedAccounts[a])
 		}
 	}
 

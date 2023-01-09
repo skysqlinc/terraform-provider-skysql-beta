@@ -26,6 +26,10 @@ type Service struct {
 			Port    int    `json:"port"`
 			Purpose string `json:"purpose"`
 		} `json:"ports"`
+		Mechanism       string   `json:"mechanism,omitempty"`
+		AllowedAccounts []string `json:"allowed_accounts,omitempty"`
+		EndpointService string   `json:"endpoint_service,omitempty"`
+		Visibility      string   `json:"visibility"`
 	} `json:"endpoints"`
 	StorageVolume struct {
 		Size       int    `json:"size"`
