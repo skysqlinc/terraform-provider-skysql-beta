@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/hashicorp/terraform-plugin-framework-timeouts/resource/timeouts"
+	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
@@ -12,15 +13,19 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/listplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	sdkresource "github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
 	"github.com/mariadb-corporation/terraform-provider-skysql-beta/internal/skysql"
 	"github.com/mariadb-corporation/terraform-provider-skysql-beta/internal/skysql/provisioning"
+	"regexp"
 	"time"
 )
 
 const defaultCreateTimeout = 60 * time.Minute
+
+var rxServiceName = regexp.MustCompile("(^[a-z][a-z0-9-]+$)")
 
 // Ensure provider defined types fully satisfy framework interfaces
 var _ resource.Resource = &ServiceResource{}
@@ -86,6 +91,13 @@ func (r *ServiceResource) Schema(ctx context.Context, req resource.SchemaRequest
 				Description: "The name of the service",
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.RequiresReplace(),
+				},
+				Validators: []validator.String{
+					stringvalidator.LengthBetween(1, 24),
+					stringvalidator.RegexMatches(
+						rxServiceName,
+						"must start from a lowercase letter and contain only lowercase letters, numbers and hyphens",
+					),
 				},
 			},
 			"project_id": schema.StringAttribute{
