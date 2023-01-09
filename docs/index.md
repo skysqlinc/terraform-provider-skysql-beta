@@ -23,6 +23,196 @@ Alternatively, SkySQL services can be managed interactively using your web brows
 
 Use the navigation to the left to read about the available resources.
 
+## Installing the Terraform Provider for SkySQL
+
+## Automated Installation (Recommended)
+
+The Terraform Provider for SkySQL is listed on the [Terraform Registry](https://registry.terraform.io/providers/mariadb-corporation/skysql/).
+
+### Configure the Terraform Configuration Files
+
+Providers listed on the Terraform Registry can be automatically downloaded when initializing a working directory with `terraform init`. The Terraform configuration block is used to configure some behaviors of Terraform itself, such as the Terraform version and the required providers and versions.
+
+**Example**: A Terraform configuration block.
+
+```hcl
+terraform {
+  required_providers {
+    skysql = {
+      source = "registry.terraform.io/mariadb-corporation/skysql-beta"
+    }
+  }
+}
+```
+
+You can use `version` locking and operators to require specific versions of the provider.
+
+**Example**: A Terraform configuration block with the provider versions.
+
+```hcl
+terraform {
+  required_providers {
+    skysql = {
+      source = "registry.terraform.io/mariadb-corporation/skysql-beta"
+       version = ">= x.y.z"
+    }
+  }
+}
+```
+
+### Verify Terraform Initialization Using the Terraform Registry
+
+
+To verify the initialization, navigate to the working directory for your Terraform configuration and run `terraform init`. You should see a message indicating that Terraform has been successfully initialized and has installed the provider from the Terraform Registry.
+
+**Example**: Initialize and Download the Provider.
+
+```console
+$ terraform init
+
+Initializing the backend...
+
+Initializing provider plugins...
+...
+
+Terraform has been successfully initialized!
+```
+
+## Manual Installation
+
+The latest release of the provider can be found on [`terraform-provider-skysql-beta/releases`](https://github.com/mariadb-corporation/terraform-provider-skysql-beta/releases). You can download the appropriate version of the provider for your operating system using a command line shell or a browser.
+
+This can be useful in environments that do not allow direct access to the Internet.
+
+### Linux
+
+The following examples use Bash on Linux (x64).
+
+1. On a Linux operating system with Internet access, download the plugin from GitHub using the shell.
+
+    ```console
+    RELEASE=x.y.z
+    OS=linux
+    ARCH=amd64
+    wget -q https://github.com/mariadb-corporation/terraform-provider-skysql-beta/releases/download/${RELEASE}/terraform-provider-skysql-beta_${RELEASE}_{OS}_{ARCH}.zip
+    ```
+
+
+2. Create a directory for the provider.
+
+    > **Note**
+    >
+    > The directory hierarchy that Terraform uses to precisely determine the source of each provider it finds locally.
+    >
+    > `<registry>/<namespace>/<service>/<version>/<OS_arch>/`
+
+    ```console
+    mkdir -p ~/.terraform.d/plugins/registry.terraform.io/mariadb-corporation/skysql-beta
+    ```
+
+3. Copy the plugin to a target system and move to the Terraform plugins directory.
+
+    ```console
+    mv terraform-provider-skysql-beta_${RELEASE}_${OS}_${ARCH}.zip ~/.terraform.d/plugins/registry.terraform.io/mariadb-corporation/skysql-beta
+
+    ```
+
+4. Verify the presence of the plugin in the Terraform plugins directory.
+
+    ```console
+    ls ~/.terraform.d/plugins/local/mariadb-corporation/skysql-beta/
+    ```
+
+### macOS
+
+The following example uses Bash (default) on macOS (ARM).
+
+1. On a macOS operating system with Internet access, install wget with [Homebrew](https://brew.sh).
+
+    ```console
+    brew install wget
+    ```
+
+2. Download the plugin from GitHub using the shell.
+
+    ```console
+    export RELEASE=0.1.0
+    wget -q https://github.com/mariadb-corporation/terraform-provider-skysql-beta/releases/download/v${RELEASE}/terraform-provider-skysql-beta_${RELEASE}_darwin_arm64.zip
+    ```
+
+3. Create a directory for the provider.
+
+    > **Note**
+    >
+    > The directory hierarchy that Terraform uses to precisely determine the source of each provider it finds locally.
+    >
+    > `<registry>/<namespace>/<service>/<version>/<OS_arch>/`
+
+    ```console
+    mkdir -p ~/.terraform.d/plugins/registry.terraform.io/mariadb-corporation/skysql-beta/
+    ```
+
+4. Copy the plugin to a target system and move to the Terraform plugins directory.
+
+    ```console
+    mv terraform-provider-skysql-beta_${RELEASE}_darwin_arm64.zip ~/.terraform.d/plugins/local/mariadb-corporation/skysql-beta/
+    ```
+
+6. Verify the presence of the plugin in the Terraform plugins directory.
+
+    ```console
+    ls ~/.terraform.d/plugins/local/mariadb-corporation/skysql-beta/
+    ```
+
+### Configure the Terraform Configuration Files
+
+A working directory can be initialized with providers that are installed locally on a system by using `terraform init`. The Terraform configuration block is used to configure some behaviors of Terraform itself, such as the Terraform version and the required providers source and version.
+
+**Example**: A Terraform configuration block.
+
+```hcl
+terraform {
+  required_providers {
+    skysql = {
+      source = "registry.terraform.io/mariadb-corporation/skysql-beta"
+    }
+  }
+}
+```
+
+### Verify the Terraform Initialization of a Manually Installed Provider
+
+To verify the initialization, navigate to the working directory for your Terraform configuration and run `terraform init`. You should see a message indicating that Terraform has been successfully initialized and the installed version of the Terraform Provider for vSphere.
+
+**Example**: Initialize and Use a Manually Installed Provider
+
+```console
+$ terraform init
+
+Initializing the backend...
+
+Initializing provider plugins...
+- Finding latest version of mariadb-corporation/skysql-beta...
+- Installing mariadb-corporation/skysql-beta x.y.z...
+- Installed mariadb-corporation/skysql-beta x.y.z (unauthenticated)
+...
+
+Terraform has been successfully initialized!
+```
+
+## Get the Provider Version
+
+To find the provider version, navigate to the working directory of your Terraform configuration and run `terraform version`. You should see a message indicating the provider version.
+
+**Example**: Terraform Provider Version from the Terraform Registry
+
+```console
+$ terraform version
+Terraform x.y.z
+on darwin_arm64
++ provider registry.terraform.io/mariadb-corporation/skysql-beta x.y.z
+```
+
 ## Configure the terraform provider
 
 1. Go to MariaDB ID: https://id.mariadb.com/account/api/ and generate an API key
