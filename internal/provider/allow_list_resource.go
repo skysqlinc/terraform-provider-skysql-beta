@@ -7,6 +7,9 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	sdkresource "github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
@@ -52,7 +55,9 @@ func (r *ServiceAllowListResource) Schema(ctx context.Context, req resource.Sche
 			"service_id": schema.StringAttribute{
 				Required:    true,
 				Description: "The ID of the service to manage the allow list for",
-			},
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				}},
 			"allow_list": schema.ListNestedAttribute{
 				Required:    true,
 				Description: "The list of IP addresses with comments to allow access to the service",
@@ -61,6 +66,9 @@ func (r *ServiceAllowListResource) Schema(ctx context.Context, req resource.Sche
 						"ip": schema.StringAttribute{
 							Required:    true,
 							Description: "The IP address to allow access to the service. The IP must be in a valid CIDR format",
+							Validators: []validator.String{
+								allowListIPValidator{},
+							},
 						},
 						"comment": schema.StringAttribute{
 							Optional:    true,

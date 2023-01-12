@@ -2,6 +2,7 @@ package provider
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"github.com/hashicorp/terraform-plugin-framework-timeouts/resource/timeouts"
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
@@ -80,6 +81,8 @@ func (r *ServiceResource) Schema(ctx context.Context, req resource.SchemaRequest
 		Description: "Creates and manages a service in SkySQL",
 		Attributes: map[string]schema.Attribute{
 			"id": schema.StringAttribute{
+				Required: false,
+				Optional: false,
 				Computed: true,
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.UseStateForUnknown(),
@@ -89,15 +92,15 @@ func (r *ServiceResource) Schema(ctx context.Context, req resource.SchemaRequest
 			"name": schema.StringAttribute{
 				Required:    true,
 				Description: "The name of the service",
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.RequiresReplace(),
-				},
 				Validators: []validator.String{
 					stringvalidator.LengthBetween(1, 24),
 					stringvalidator.RegexMatches(
 						rxServiceName,
 						"must start from a lowercase letter and contain only lowercase letters, numbers and hyphens",
 					),
+				},
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.RequiresReplace(),
 				},
 			},
 			"project_id": schema.StringAttribute{
@@ -275,8 +278,9 @@ func (r *ServiceResource) Create(ctx context.Context, req resource.CreateRequest
 		Mechanism:    data.Mechanism.ValueString(),
 	}
 
-	for _, element := range data.AllowedAccounts.Elements() {
-		createServiceRequest.AllowedAccounts = append(createServiceRequest.AllowedAccounts, element.String())
+	diag := data.AllowedAccounts.ElementsAs(ctx, &createServiceRequest.AllowedAccounts, false)
+	if diag.HasError() {
+		return
 	}
 
 	service, err := r.client.CreateService(ctx, createServiceRequest)
@@ -295,6 +299,7 @@ func (r *ServiceResource) Create(ctx context.Context, req resource.CreateRequest
 	} else {
 		data.VolumeIOPS = types.Int64Null()
 	}
+	data.VolumeType = types.StringValue(service.StorageVolume.VolumeType)
 
 	// Save data into Terraform state
 	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
@@ -321,6 +326,10 @@ func (r *ServiceResource) Create(ctx context.Context, req resource.CreateRequest
 				return sdkresource.RetryableError(fmt.Errorf("expected instance to be ready or failed state but was in state %s", service.Status))
 			}
 
+			if service.Status == "failed" {
+				return sdkresource.NonRetryableError(errors.New("service creation failed"))
+			}
+
 			return nil
 		})
 
@@ -342,11 +351,18 @@ func (r *ServiceResource) Read(ctx context.Context, req resource.ReadRequest, re
 
 	service, err := r.client.GetServiceByID(ctx, data.ID.ValueString())
 	if err != nil {
-		resp.Diagnostics.AddError("Can not find service", err.Error())
+		if errors.Is(err, skysql.ErrorServiceNotFound) {
+			tflog.Warn(ctx, "SkySQL service not found, removing from state", map[string]interface{}{
+				"id": data.ID.ValueString(),
+			})
+			resp.State.RemoveResource(ctx)
+
+			return
+		}
+		resp.Diagnostics.AddError("Can not read service", err.Error())
 		return
 	}
 
-	data.Name = types.StringValue(service.Name)
 	data.ServiceType = types.StringValue(service.ServiceType)
 	data.Provider = types.StringValue(service.Provider)
 	data.Region = types.StringValue(service.Region)
@@ -356,12 +372,14 @@ func (r *ServiceResource) Read(ctx context.Context, req resource.ReadRequest, re
 	data.Size = types.StringValue(service.Size)
 	data.Topology = types.StringValue(service.Topology)
 	data.Storage = types.Int64Value(int64(service.StorageVolume.Size))
-	if service.StorageVolume.IOPS > 0 {
+	if !data.VolumeIOPS.IsNull() && service.StorageVolume.IOPS > 0 {
 		data.VolumeIOPS = types.Int64Value(int64(service.StorageVolume.IOPS))
 	} else {
 		data.VolumeIOPS = types.Int64Null()
 	}
-	data.VolumeType = types.StringValue(service.StorageVolume.VolumeType)
+	if !data.VolumeType.IsNull() {
+		data.VolumeType = types.StringValue(service.StorageVolume.VolumeType)
+	}
 	// Save updated data into Terraform state
 	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
 	if resp.Diagnostics.HasError() {

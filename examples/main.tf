@@ -24,7 +24,7 @@ resource "skysql_service" "default" {
   service_type      = "transactional"
   topology          = "standalone"
   cloud_provider    = "aws"
-  region            = "us-east-1"
+  region            = "us-east-2"
   name              = "vf-test9"
   architecture      = "amd64"
   nodes             = 1

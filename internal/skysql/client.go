@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"github.com/go-resty/resty/v2"
+	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/logging"
 	"github.com/mariadb-corporation/terraform-provider-skysql-beta/internal/skysql/organization"
 	"github.com/mariadb-corporation/terraform-provider-skysql-beta/internal/skysql/provisioning"
@@ -33,8 +34,12 @@ func (c *Client) GetProjects(ctx context.Context) ([]organization.Project, error
 		SetResult([]organization.Project{}).
 		SetContext(ctx).
 		Get("/organization/v1/projects")
-	if err != nil {
-		return nil, err
+	if resp.IsError() {
+		if resp.Error() != nil {
+			errResp := resp.Error().(*ErrorResponse)
+			return nil, errors.New(errResp.Errors[0].Message)
+		}
+		return nil, errors.New(resp.Status())
 	}
 	return *resp.Result().(*[]organization.Project), err
 }
@@ -48,6 +53,14 @@ func (c *Client) GetVersions(ctx context.Context) ([]provisioning.Version, error
 	if err != nil {
 		return nil, err
 	}
+
+	if resp.IsError() {
+		if resp.Error() != nil {
+			errResp := resp.Error().(*ErrorResponse)
+			return nil, errors.New(errResp.Errors[0].Message)
+		}
+		return nil, errors.New(resp.Status())
+	}
 	return *resp.Result().(*[]provisioning.Version), err
 }
 
@@ -59,6 +72,16 @@ func (c *Client) GetServiceByID(ctx context.Context, serviceID string) (*provisi
 		Get("/provisioning/v1/services/" + serviceID)
 	if err != nil {
 		return nil, err
+	}
+	if resp.IsError() {
+		if resp.Error() != nil {
+			if resp.StatusCode() == 404 {
+				return nil, ErrorServiceNotFound
+			}
+			errResp := resp.Error().(*ErrorResponse)
+			return nil, errors.New(errResp.Errors[0].Message)
+		}
+		return nil, errors.New(resp.Status())
 	}
 	return resp.Result().(*provisioning.Service), err
 }
@@ -76,11 +99,11 @@ func (c *Client) CreateService(ctx context.Context, req *provisioning.CreateServ
 	}
 
 	if resp.IsError() {
-		if resp.StatusCode() == 404 {
-			return nil, ErrorServiceNotFound
+		if resp.Error() != nil {
+			errResp := resp.Error().(*ErrorResponse)
+			return nil, errors.New(errResp.Errors[0].Message)
 		}
-		errResp := resp.Error().(*ErrorResponse)
-		return nil, errors.New(errResp.Errors[0].Message)
+		return nil, errors.New(resp.Status())
 	}
 
 	return resp.Result().(*provisioning.Service), err
@@ -97,8 +120,11 @@ func (c *Client) DeleteServiceByID(ctx context.Context, serviceID string) error 
 	}
 
 	if resp.IsError() {
-		errResp := resp.Error().(*ErrorResponse)
-		return errors.New(errResp.Errors[0].Message)
+		if resp.Error() != nil {
+			errResp := resp.Error().(*ErrorResponse)
+			return errors.New(errResp.Errors[0].Message)
+		}
+		return errors.New(resp.Status())
 	}
 
 	return nil
@@ -113,6 +139,13 @@ func (c *Client) GetServiceCredentialsByID(ctx context.Context, serviceID string
 	if err != nil {
 		return nil, err
 	}
+	if resp.IsError() {
+		if resp.Error() != nil {
+			errResp := resp.Error().(*ErrorResponse)
+			return nil, errors.New(errResp.Errors[0].Message)
+		}
+		return nil, errors.New(resp.Status())
+	}
 	return resp.Result().(*provisioning.Credentials), err
 }
 
@@ -126,7 +159,13 @@ func (c *Client) UpdateServiceAllowListByID(ctx context.Context, serviceID strin
 	if err != nil {
 		return nil, err
 	}
-
+	if resp.IsError() {
+		if resp.Error() != nil {
+			errResp := resp.Error().(*ErrorResponse)
+			return nil, errors.New(errResp.Errors[0].Message)
+		}
+		return nil, errors.New(resp.Status())
+	}
 	response := *resp.Result().(*provisioning.ReadAllowListResponse)
 
 	return response[0].AllowList, err
@@ -141,6 +180,17 @@ func (c *Client) ReadServiceAllowListByID(ctx context.Context, serviceID string)
 		Get("/provisioning/v1/services/" + serviceID + "/security/allowlist")
 	if err != nil {
 		return nil, err
+	}
+	if resp.IsError() {
+		if resp.Error() != nil {
+			errResp := resp.Error().(*ErrorResponse)
+			return nil, errors.New(errResp.Errors[0].Message)
+		}
+		tflog.Error(ctx, "can not update allowlist", map[string]interface{}{
+			"status": resp.Status(),
+			"body":   resp.Body(),
+		})
+		return nil, errors.New(resp.Status())
 	}
 	response := *resp.Result().(*provisioning.ReadAllowListResponse)
 	if response == nil {
