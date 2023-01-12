@@ -155,7 +155,7 @@ The following example uses Bash (default) on macOS (ARM).
 4. Copy the plugin to a target system and move to the Terraform plugins directory.
 
     ```console
-    mv terraform-provider-skysql-beta_${RELEASE}_darwin_arm64.zip ~/.terraform.d/plugins/local/mariadb-corporation/skysql-beta/
+    mv terraform-provider-skysql-beta_${RELEASE}_darwin_arm64.zip ~/.terraform.d/plugins/registry.terraform.io/mariadb-corporation/skysql-beta/
     ```
 
 6. Verify the presence of the plugin in the Terraform plugins directory.
