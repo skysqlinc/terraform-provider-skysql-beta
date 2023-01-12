@@ -22,3 +22,5 @@ type ErrorDetails struct {
 }
 
 var ErrorServiceNotFound = errors.New("service not found")
+
+var ErrorUnauthorized = errors.New("skysql returns unauthorized error")

@@ -4,11 +4,12 @@ import (
 	"context"
 	"errors"
 	"github.com/go-resty/resty/v2"
-	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/logging"
 	"github.com/mariadb-corporation/terraform-provider-skysql-beta/internal/skysql/organization"
 	"github.com/mariadb-corporation/terraform-provider-skysql-beta/internal/skysql/provisioning"
 	"net/http"
+	"net/url"
+	"strconv"
 )
 
 type Client struct {
@@ -35,17 +36,23 @@ func (c *Client) GetProjects(ctx context.Context) ([]organization.Project, error
 		SetContext(ctx).
 		Get("/organization/v1/projects")
 	if resp.IsError() {
-		if resp.Error() != nil {
-			errResp := resp.Error().(*ErrorResponse)
-			return nil, errors.New(errResp.Errors[0].Message)
-		}
-		return nil, errors.New(resp.Status())
+		return nil, handleError(resp)
 	}
 	return *resp.Result().(*[]organization.Project), err
 }
 
-func (c *Client) GetVersions(ctx context.Context) ([]provisioning.Version, error) {
-	resp, err := c.HTTPClient.R().
+func WithPageSize(value uint) func(url.Values) {
+	return func(values url.Values) {
+		values.Set("page_size", strconv.Itoa(int(value)))
+	}
+}
+
+func (c *Client) GetVersions(ctx context.Context, options ...func(url.Values)) ([]provisioning.Version, error) {
+	request := c.HTTPClient.R()
+	for _, option := range options {
+		option(request.QueryParam)
+	}
+	resp, err := request.
 		SetHeader("Accept", "application/json").
 		SetResult([]provisioning.Version{}).
 		SetContext(ctx).
@@ -55,11 +62,7 @@ func (c *Client) GetVersions(ctx context.Context) ([]provisioning.Version, error
 	}
 
 	if resp.IsError() {
-		if resp.Error() != nil {
-			errResp := resp.Error().(*ErrorResponse)
-			return nil, errors.New(errResp.Errors[0].Message)
-		}
-		return nil, errors.New(resp.Status())
+		return nil, handleError(resp)
 	}
 	return *resp.Result().(*[]provisioning.Version), err
 }
@@ -74,14 +77,7 @@ func (c *Client) GetServiceByID(ctx context.Context, serviceID string) (*provisi
 		return nil, err
 	}
 	if resp.IsError() {
-		if resp.Error() != nil {
-			if resp.StatusCode() == 404 {
-				return nil, ErrorServiceNotFound
-			}
-			errResp := resp.Error().(*ErrorResponse)
-			return nil, errors.New(errResp.Errors[0].Message)
-		}
-		return nil, errors.New(resp.Status())
+		return nil, handleError(resp)
 	}
 	return resp.Result().(*provisioning.Service), err
 }
@@ -99,11 +95,7 @@ func (c *Client) CreateService(ctx context.Context, req *provisioning.CreateServ
 	}
 
 	if resp.IsError() {
-		if resp.Error() != nil {
-			errResp := resp.Error().(*ErrorResponse)
-			return nil, errors.New(errResp.Errors[0].Message)
-		}
-		return nil, errors.New(resp.Status())
+		return nil, handleError(resp)
 	}
 
 	return resp.Result().(*provisioning.Service), err
@@ -120,11 +112,7 @@ func (c *Client) DeleteServiceByID(ctx context.Context, serviceID string) error 
 	}
 
 	if resp.IsError() {
-		if resp.Error() != nil {
-			errResp := resp.Error().(*ErrorResponse)
-			return errors.New(errResp.Errors[0].Message)
-		}
-		return errors.New(resp.Status())
+		return handleError(resp)
 	}
 
 	return nil
@@ -140,11 +128,7 @@ func (c *Client) GetServiceCredentialsByID(ctx context.Context, serviceID string
 		return nil, err
 	}
 	if resp.IsError() {
-		if resp.Error() != nil {
-			errResp := resp.Error().(*ErrorResponse)
-			return nil, errors.New(errResp.Errors[0].Message)
-		}
-		return nil, errors.New(resp.Status())
+		return nil, handleError(resp)
 	}
 	return resp.Result().(*provisioning.Credentials), err
 }
@@ -160,11 +144,7 @@ func (c *Client) UpdateServiceAllowListByID(ctx context.Context, serviceID strin
 		return nil, err
 	}
 	if resp.IsError() {
-		if resp.Error() != nil {
-			errResp := resp.Error().(*ErrorResponse)
-			return nil, errors.New(errResp.Errors[0].Message)
-		}
-		return nil, errors.New(resp.Status())
+		return nil, handleError(resp)
 	}
 	response := *resp.Result().(*provisioning.ReadAllowListResponse)
 
@@ -182,19 +162,25 @@ func (c *Client) ReadServiceAllowListByID(ctx context.Context, serviceID string)
 		return nil, err
 	}
 	if resp.IsError() {
-		if resp.Error() != nil {
-			errResp := resp.Error().(*ErrorResponse)
-			return nil, errors.New(errResp.Errors[0].Message)
-		}
-		tflog.Error(ctx, "can not update allowlist", map[string]interface{}{
-			"status": resp.Status(),
-			"body":   resp.Body(),
-		})
-		return nil, errors.New(resp.Status())
+		return nil, handleError(resp)
 	}
 	response := *resp.Result().(*provisioning.ReadAllowListResponse)
 	if response == nil {
 		response = make(provisioning.ReadAllowListResponse, 0)
 	}
 	return response, err
+}
+
+func handleError(resp *resty.Response) error {
+	if resp.StatusCode() == 404 {
+		return ErrorServiceNotFound
+	}
+	if resp.StatusCode() == 401 {
+		return ErrorUnauthorized
+	}
+	if resp.Error() != nil {
+		errResp := resp.Error().(*ErrorResponse)
+		return errors.New(errResp.Errors[0].Message)
+	}
+	return errors.New(resp.Status())
 }

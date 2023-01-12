@@ -32,6 +32,7 @@ var rxServiceName = regexp.MustCompile("(^[a-z][a-z0-9-]+$)")
 var _ resource.Resource = &ServiceResource{}
 var _ resource.ResourceWithImportState = &ServiceResource{}
 var _ resource.ResourceWithConfigure = &ServiceResource{}
+var _ resource.ResourceWithModifyPlan = &ServiceResource{}
 
 func NewServiceResource() resource.Resource {
 	return &ServiceResource{}
@@ -449,4 +450,51 @@ func (r *ServiceResource) Delete(ctx context.Context, req resource.DeleteRequest
 
 func (r *ServiceResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
 	resource.ImportStatePassthroughID(ctx, path.Root("id"), req, resp)
+}
+
+func (r *ServiceResource) ModifyPlan(ctx context.Context, req resource.ModifyPlanRequest, resp *resource.ModifyPlanResponse) {
+	// Plan does not need to be modified when the resource is being destroyed.
+	if req.Plan.Raw.IsNull() {
+		return
+	}
+
+	var config *ServiceResourceModel
+
+	// Read Terraform plan data into the model
+	resp.Diagnostics.Append(req.Config.Get(ctx, &config)...)
+
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	if config.Provider.ValueString() == "aws" {
+		if !config.VolumeIOPS.IsNull() && config.VolumeType.IsNull() {
+			resp.Diagnostics.AddAttributeError(path.Root("volume_type"),
+				"volume_type is require",
+				"volume_type is required when volume_iops is set. "+
+					"Use: io1 for volume_type if volume_iops is set")
+			return
+		}
+		if !config.VolumeIOPS.IsNull() &&
+			config.VolumeType.ValueString() != "io1" {
+			resp.Diagnostics.AddAttributeError(path.Root("volume_type"),
+				"volume_type must be io1 when you want to set IOPS",
+				"Use: io1 for volume_type if volume_iops is set")
+			return
+		}
+	} else {
+		if !config.VolumeType.IsNull() {
+			resp.Diagnostics.AddAttributeError(
+				path.Root("volume_type"),
+				fmt.Sprintf("volume_type is not supported for %q provider", config.Provider.ValueString()),
+				fmt.Sprintf("Volume type is not supported for %q provider", config.Provider.ValueString()))
+			return
+		}
+		if !config.VolumeIOPS.IsNull() {
+			resp.Diagnostics.AddAttributeError(path.Root("volume_iops"),
+				fmt.Sprintf("volume_iops is not supported for %q provider", config.Provider.ValueString()),
+				fmt.Sprintf("Volume IOPS are not supported for %q provider", config.Provider.ValueString()))
+			return
+		}
+	}
 }
