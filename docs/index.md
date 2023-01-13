@@ -3,12 +3,13 @@
 ---
 page_title: "Provider: MariaDB SkySQL Terraform Provider"
 description: |-
-The MariaDB SkySQL Terraform Provider allows database services in MariaDB SkySQL to be managed using Terraform.---
+The MariaDB SkySQL Terraform Provider allows database services in MariaDB SkySQL to be managed using Terraform.
+---
 
 # SKYSQL-BETA Provider
 
-The current implementation is in Technical preview and will become available in the Terraform registry in the near future. 
-It allows configuring any SkySQL DB topology using the Terraform's declarative language. 
+The current implementation is in Technical preview and will become available in the Terraform registry in the near future.
+It allows configuring any SkySQL DB topology using the Terraform's declarative language.
 
 * It automatically provisions new SkySQL services or updates existing ones when the Terraform configuration is applied
 
@@ -16,7 +17,7 @@ It allows configuring any SkySQL DB topology using the Terraform's declarative l
 
 [Terraform](https://www.terraform.io/) is an open source infrastructure-as-code (IaC) utility.
 
-Alternatively, SkySQL services can be managed interactively the [SkySQL Portal](https://skysql.mariadb.com/dashboard) or the SkySQL REST API. 
+Alternatively, SkySQL services can be managed interactively the [SkySQL Portal](https://skysql.mariadb.com/dashboard) or the SkySQL REST API.
 
 Use the navigation to the left to read about the available resources.
 
@@ -24,8 +25,7 @@ Use the navigation to the left to read about the available resources.
 
 ## Automated Installation (Recommended)
 
-The Terraform Provider for SkySQL WILL BE listed on the [Terraform Registry](https://registry.terraform.io/providers/mariadb-corporation/skysql/).
-For now, use the described procedure below. 
+The Terraform Provider for SkySQL **WILL BE** listed on the [Terraform Registry](https://registry.terraform.io/providers/mariadb-corporation/skysql-beta/).
 
 ### Configure the Terraform Configuration Files
 
@@ -87,7 +87,6 @@ This can be useful in environments that do not allow direct access to the Intern
 The following examples use Bash on Linux (x64).
 
 1. On a Linux operating system with Internet access, download the plugin from GitHub using the shell.
-Replace 'x.y.z' below with the release version (see above link for available releases). 
 
     ```console
     RELEASE=x.y.z
@@ -132,7 +131,7 @@ The following example uses Bash (default) on macOS (ARM).
     brew install wget
     ```
 
-2. Download the plugin from GitHub using the shell. Replace 'x.y.z' below with the release version (see above link for available releases). 
+2. Download the plugin from GitHub using the shell. Replace 'x.y.z' below with the release version (see above link for available releases).
 
     ```console
     export RELEASE=x.y.z

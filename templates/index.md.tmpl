@@ -1,25 +1,23 @@
 
 
 ---
-page_title: "Provider: MariaDB SkySQL DBaaS API Terraform Provider"
+page_title: "Provider: MariaDB SkySQL Terraform Provider"
 description: |-
-The MariaDB SkySQL DBaaS API Terraform Provider allows database services in MariaDB SkySQL to be managed using Terraform.---
+The MariaDB SkySQL Terraform Provider allows database services in MariaDB SkySQL to be managed using Terraform.
+---
 
 # {{ .ProviderShortName | upper }} Provider
 
-The MariaDB SkySQL DBaaS API Terraform Provider allows database services in MariaDB SkySQL to be managed using Terraform:
+The current implementation is in Technical preview and will become available in the Terraform registry in the near future.
+It allows configuring any SkySQL DB topology using the Terraform's declarative language.
 
-* It allows SkySQL services to be configured using Terraform's declarative language
-
-* It automatically provisions new SkySQL services when the Terraform configuration is applied
+* It automatically provisions new SkySQL services or updates existing ones when the Terraform configuration is applied
 
 * It automatically tears down SkySQL services when the Terraform configuration is destroyed
 
 [Terraform](https://www.terraform.io/) is an open source infrastructure-as-code (IaC) utility.
 
-The MariaDB SkySQL DBaaS API Terraform Provider is a Technical Preview. Software in Tech Preview should not be used for production workloads.
-
-Alternatively, SkySQL services can be managed interactively using your web browser and the [SkySQL Portal](https://skysql.mariadb.com/dashboard).
+Alternatively, SkySQL services can be managed interactively the [SkySQL Portal](https://skysql.mariadb.com/dashboard) or the SkySQL REST API.
 
 Use the navigation to the left to read about the available resources.
 
@@ -27,7 +25,7 @@ Use the navigation to the left to read about the available resources.
 
 ## Automated Installation (Recommended)
 
-The Terraform Provider for SkySQL is listed on the [Terraform Registry](https://registry.terraform.io/providers/mariadb-corporation/skysql/).
+The Terraform Provider for SkySQL **WILL BE** listed on the [Terraform Registry](https://registry.terraform.io/providers/mariadb-corporation/skysql-beta/).
 
 ### Configure the Terraform Configuration Files
 
@@ -133,10 +131,10 @@ The following example uses Bash (default) on macOS (ARM).
     brew install wget
     ```
 
-2. Download the plugin from GitHub using the shell.
+2. Download the plugin from GitHub using the shell. Replace 'x.y.z' below with the release version (see above link for available releases).
 
     ```console
-    export RELEASE=0.1.0
+    export RELEASE=x.y.z
     wget -q https://github.com/mariadb-corporation/terraform-provider-skysql-beta/releases/download/v${RELEASE}/terraform-provider-skysql-beta_${RELEASE}_darwin_arm64.zip
     ```
 
