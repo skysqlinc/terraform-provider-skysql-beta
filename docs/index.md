@@ -24,7 +24,8 @@ Use the navigation to the left to read about the available resources.
 
 ## Automated Installation (Recommended)
 
-The Terraform Provider for SkySQL is listed on the [Terraform Registry](https://registry.terraform.io/providers/mariadb-corporation/skysql/).
+The Terraform Provider for SkySQL WILL BE listed on the [Terraform Registry](https://registry.terraform.io/providers/mariadb-corporation/skysql/).
+For now, use the described procedure below. 
 
 ### Configure the Terraform Configuration Files
 
