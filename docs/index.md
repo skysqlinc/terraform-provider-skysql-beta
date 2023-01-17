@@ -1,5 +1,6 @@
 ---
 page_title: "Provider: MariaDB SkySQL Terraform Provider"
+
 description: |-
 The MariaDB SkySQL Terraform Provider allows database services in MariaDB SkySQL to be managed using Terraform.
 
@@ -22,11 +23,11 @@ Use the navigation to the left to read about the available resources.
 
 ## Installing the Terraform Provider for SkySQL
 
-## Automated Installation (Recommended)
+### Automated Installation (Recommended)
 
 The Terraform Provider for SkySQL **WILL BE** listed on the [Terraform Registry](https://registry.terraform.io/providers/mariadb-corporation/skysql-beta/).
 
-### Configure the Terraform Configuration Files
+#### Create a Terraform configuration file
 
 Providers listed on the Terraform Registry can be automatically downloaded when initializing a working directory with `terraform init`. The Terraform configuration block is used to configure some behaviors of Terraform itself, such as the Terraform version and the required providers and versions.
 
@@ -57,31 +58,13 @@ terraform {
 }
 ```
 
-### Verify Terraform Initialization Using the Terraform Registry
-
-
-To verify the initialization, navigate to the working directory for your Terraform configuration and run `terraform init`. You should see a message indicating that Terraform has been successfully initialized and has installed the provider from the Terraform Registry.
-
-**Example**: Initialize and Download the Provider.
-
-```console
-$ terraform init
-
-Initializing the backend...
-
-Initializing provider plugins...
-...
-
-Terraform has been successfully initialized!
-```
-
-## Manual Installation
+### Manual Installation
 
 The latest release of the provider can be found on [`terraform-provider-skysql-beta/releases`](https://github.com/mariadb-corporation/terraform-provider-skysql-beta/releases). You can download the appropriate version of the provider for your operating system using a command line shell or a browser.
 
 This can be useful in environments that do not allow direct access to the Internet.
 
-### Linux
+#### Linux
 
 The following examples use Bash on Linux (x64).
 
@@ -93,7 +76,6 @@ The following examples use Bash on Linux (x64).
     ARCH=amd64
     wget -q https://github.com/mariadb-corporation/terraform-provider-skysql-beta/releases/download/${RELEASE}/terraform-provider-skysql-beta_${RELEASE}_{OS}_{ARCH}.zip
     ```
-
 
 2. Create a directory for the provider.
 
@@ -120,7 +102,7 @@ The following examples use Bash on Linux (x64).
     ls ~/.terraform.d/plugins/local/mariadb-corporation/skysql-beta/
     ```
 
-### macOS
+#### macOS
 
 The following example uses Bash (default) on macOS (ARM).
 
@@ -155,17 +137,15 @@ The following example uses Bash (default) on macOS (ARM).
     mv terraform-provider-skysql-beta_${RELEASE}_darwin_arm64.zip ~/.terraform.d/plugins/registry.terraform.io/mariadb-corporation/skysql-beta/
     ```
 
-6. Verify the presence of the plugin in the Terraform plugins directory.
+5. Verify the presence of the plugin in the Terraform plugins directory.
 
     ```console
     ls ~/.terraform.d/plugins/local/mariadb-corporation/skysql-beta/
     ```
 
-### Configure the Terraform Configuration Files
+## Configure the Terraform Configuration Files
 
-A working directory can be initialized with providers that are installed locally on a system by using `terraform init`. The Terraform configuration block is used to configure some behaviors of Terraform itself, such as the Terraform version and the required providers source and version.
-
-**Example**: A Terraform configuration block.
+In order to use the `skysql-beta` terraform provider, you need to configure the provider in your Terraform configuration files.
 
 ```hcl
 terraform {
@@ -177,11 +157,22 @@ terraform {
 }
 ```
 
-### Verify the Terraform Initialization of a Manually Installed Provider
+or you can specify the provider version.
+
+```hcl
+terraform {
+  required_providers {
+    skysql = {
+      source = "registry.terraform.io/mariadb-corporation/skysql-beta"
+      version = ">= x.y.z"
+    }
+  }
+}
+```
+
+## Verify the Terraform Initialization
 
 To verify the initialization, navigate to the working directory for your Terraform configuration and run `terraform init`. You should see a message indicating that Terraform has been successfully initialized and the installed version of the Terraform Provider for vSphere.
-
-**Example**: Initialize and Use a Manually Installed Provider
 
 ```console
 $ terraform init
@@ -210,16 +201,18 @@ on darwin_arm64
 + provider registry.terraform.io/mariadb-corporation/skysql-beta x.y.z
 ```
 
-## Configure the terraform provider
+## Create a new SkySQL service
 
-1. Go to MariaDB ID: https://id.mariadb.com/account/api/ and generate an API key
+1. Go to MariaDB ID: [https://id.mariadb.com/account/api/](https://id.mariadb.com/account/api/) and generate an API key
+
 2. Set environment variables:
-```bash
-    export TF_SKYSQL_API_ACCESS_TOKEN=[SKYSQL API access token]
-    export TF_SKYSQL_API_BASE_URL=https://api.mariadb.com
-```
 
-## Example Usage
+    ```bash
+        export TF_SKYSQL_API_ACCESS_TOKEN=[SKYSQL API access token]
+        export TF_SKYSQL_API_BASE_URL=https://api.mariadb.com
+    ```
+
+3. Create a new SkySQL service using the example below:
 
 ```terraform
 terraform {
@@ -253,12 +246,11 @@ output "skysql_projects" {
 
 # Create a service
 resource "skysql_service" "default" {
-  project_id     = "e95584aa-3d0d-4513-8cbe-5c63d36a2baa"
   service_type   = "transactional"
   topology       = "standalone"
   cloud_provider = "gcp"
   region         = "us-central1"
-  name           = "vf-test-gcp"
+  name           = "my-first-service"
   architecture   = "amd64"
   nodes          = 1
   size           = "sky-2x8"
@@ -320,7 +312,7 @@ output "skysql_cmd" {
 
 * The terraform resource `skysql_service` doesn't support updates. If you need to change the configuration of a service, you need to destroy the service and create a new one.
 
-### Secrets and Terraform state
+## Secrets and Terraform state
 
 Some resources that can be created with this provider, like `skysql_credentials`, are
 considered "secrets", and as such are marked by this provider as _sensitive_, so to
@@ -328,7 +320,7 @@ help practitioner to not accidentally leak their value in logs or other form of 
 
 It's important to remember that the values that constitute the "state" of those
 resources will be stored in the [Terraform state](https://www.terraform.io/language/state) file.
-This includes the "secrets", that will be part of the state file *unencrypted*.
+This includes the "secrets", that will be part of the state file **unencrypted**.
 
 Because of these limitations, **use of these resources for production deployments is _not_ recommended**.
 Failing that, **protecting the content of the state file is strongly recommended**.

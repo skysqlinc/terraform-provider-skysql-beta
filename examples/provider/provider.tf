@@ -29,12 +29,11 @@ output "skysql_projects" {
 
 # Create a service
 resource "skysql_service" "default" {
-  project_id     = "e95584aa-3d0d-4513-8cbe-5c63d36a2baa"
   service_type   = "transactional"
   topology       = "standalone"
   cloud_provider = "gcp"
   region         = "us-central1"
-  name           = "vf-test-gcp"
+  name           = "my-first-service"
   architecture   = "amd64"
   nodes          = 1
   size           = "sky-2x8"
