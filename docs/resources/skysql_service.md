@@ -59,8 +59,9 @@ resource "skysql_service" "default" {
 - `nosql_enabled` (Boolean) Whether to enable NoSQL. Valid values are: true or false
 - `timeouts` (Block, Optional) (see [below for nested schema](#nestedblock--timeouts))
 - `volume_iops` (Number) The volume IOPS. This is only applicable for AWS
-- `volume_type` (String) The volume type. Valid values are: gp2,gp3,io1,io2. This is only applicable for AWS
+- `volume_type` (String) The volume type. Valid values are: gp2 and io1. This is only applicable for AWS
 - `wait_for_creation` (Boolean) Whether to wait for the service to be created. Valid values are: true or false
+- `wait_for_deletion` (Boolean) Whether to wait for the service to be deleted. Valid values are: true or false
 
 ### Read-Only
 
@@ -72,4 +73,6 @@ resource "skysql_service" "default" {
 Optional:
 
 - `create` (String)
+- `delete` (String)
+- `update` (String)
 
