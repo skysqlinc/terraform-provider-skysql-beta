@@ -25,6 +25,7 @@ import (
 )
 
 const defaultCreateTimeout = 60 * time.Minute
+const defaultDeleteTimeout = 60 * time.Minute
 
 var rxServiceName = regexp.MustCompile("(^[a-z][a-z0-9-]+$)")
 
@@ -65,6 +66,7 @@ type ServiceResourceModel struct {
 	Timeouts        timeouts.Value `tfsdk:"timeouts"`
 	Mechanism       types.String   `tfsdk:"endpoint_mechanism"`
 	AllowedAccounts types.List     `tfsdk:"endpoint_allowed_accounts"`
+	WaitForDeletion types.Bool     `tfsdk:"wait_for_deletion"`
 }
 
 // ServiceResourceNamedPortModel is an endpoint port
@@ -197,7 +199,7 @@ func (r *ServiceResource) Schema(ctx context.Context, req resource.SchemaRequest
 			},
 			"volume_type": schema.StringAttribute{
 				Optional:    true,
-				Description: "The volume type. Valid values are: gp2,gp3,io1,io2. This is only applicable for AWS",
+				Description: "The volume type. Valid values are: gp2 and io1. This is only applicable for AWS",
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.RequiresReplace(),
 				},
@@ -221,10 +223,19 @@ func (r *ServiceResource) Schema(ctx context.Context, req resource.SchemaRequest
 					listplanmodifier.RequiresReplace(),
 				},
 			},
+			"wait_for_deletion": schema.BoolAttribute{
+				Optional:    true,
+				Description: "Whether to wait for the service to be deleted. Valid values are: true or false",
+				PlanModifiers: []planmodifier.Bool{
+					boolplanmodifier.UseStateForUnknown(),
+				},
+			},
 		},
 		Blocks: map[string]schema.Block{
 			"timeouts": timeouts.Block(ctx, timeouts.Opts{
 				Create: true,
+				Delete: true,
+				Update: true,
 			}),
 		},
 	}
@@ -300,7 +311,11 @@ func (r *ServiceResource) Create(ctx context.Context, req resource.CreateRequest
 	} else {
 		data.VolumeIOPS = types.Int64Null()
 	}
-	data.VolumeType = types.StringValue(service.StorageVolume.VolumeType)
+	if service.StorageVolume.VolumeType != "" {
+		data.VolumeType = types.StringValue(service.StorageVolume.VolumeType)
+	} else {
+		data.VolumeType = types.StringNull()
+	}
 
 	// Save data into Terraform state
 	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
@@ -350,7 +365,7 @@ func (r *ServiceResource) Read(ctx context.Context, req resource.ReadRequest, re
 		return
 	}
 
-	service, err := r.client.GetServiceByID(ctx, data.ID.ValueString())
+	err := r.readServiceState(ctx, data)
 	if err != nil {
 		if errors.Is(err, skysql.ErrorServiceNotFound) {
 			tflog.Warn(ctx, "SkySQL service not found, removing from state", map[string]interface{}{
@@ -363,7 +378,19 @@ func (r *ServiceResource) Read(ctx context.Context, req resource.ReadRequest, re
 		resp.Diagnostics.AddError("Can not read service", err.Error())
 		return
 	}
+	// Save updated data into Terraform state
+	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+}
 
+func (r *ServiceResource) readServiceState(ctx context.Context, data *ServiceResourceModel) error {
+	service, err := r.client.GetServiceByID(ctx, data.ID.ValueString())
+	if err != nil {
+		return err
+	}
+	data.ID = types.StringValue(service.ID)
 	data.ServiceType = types.StringValue(service.ServiceType)
 	data.Provider = types.StringValue(service.Provider)
 	data.Region = types.StringValue(service.Region)
@@ -381,11 +408,7 @@ func (r *ServiceResource) Read(ctx context.Context, req resource.ReadRequest, re
 	if !data.VolumeType.IsNull() {
 		data.VolumeType = types.StringValue(service.StorageVolume.VolumeType)
 	}
-	// Save updated data into Terraform state
-	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
-	if resp.Diagnostics.HasError() {
-		return
-	}
+	return nil
 }
 
 func (r *ServiceResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
@@ -406,24 +429,19 @@ func (r *ServiceResource) Update(ctx context.Context, req resource.UpdateRequest
 		return
 	}
 
-	service, err := r.client.GetServiceByID(ctx, state.ID.ValueString())
+	err := r.readServiceState(ctx, state)
 	if err != nil {
-		resp.Diagnostics.AddError("Can not find service", err.Error())
+		if errors.Is(err, skysql.ErrorServiceNotFound) {
+			tflog.Warn(ctx, "SkySQL service not found, removing from state", map[string]interface{}{
+				"id": state.ID.ValueString(),
+			})
+			resp.State.RemoveResource(ctx)
+
+			return
+		}
+		resp.Diagnostics.AddError("Can not read service", err.Error())
 		return
 	}
-
-	state.Name = types.StringValue(service.Name)
-	state.ServiceType = types.StringValue(service.ServiceType)
-	state.Provider = types.StringValue(service.Provider)
-	state.Region = types.StringValue(service.Region)
-	state.Version = types.StringValue(service.Version)
-	state.Nodes = types.Int64Value(int64(service.Nodes))
-	state.Architecture = types.StringValue(service.Architecture)
-	state.Size = types.StringValue(service.Size)
-	state.Topology = types.StringValue(service.Topology)
-	state.Storage = types.Int64Value(int64(service.StorageVolume.Size))
-	state.VolumeIOPS = types.Int64Value(int64(service.StorageVolume.IOPS))
-	state.VolumeType = types.StringValue(service.StorageVolume.VolumeType)
 	// Save updated data into Terraform state
 	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
 	if resp.Diagnostics.HasError() {
@@ -443,8 +461,40 @@ func (r *ServiceResource) Delete(ctx context.Context, req resource.DeleteRequest
 
 	err := r.client.DeleteServiceByID(ctx, state.ID.ValueString())
 	if err != nil {
-		resp.Diagnostics.AddError("Can not find service", err.Error())
+		if errors.Is(err, skysql.ErrorServiceNotFound) {
+			tflog.Warn(ctx, "SkySQL service not found, removing from state", map[string]interface{}{
+				"id": state.ID.ValueString(),
+			})
+			resp.State.RemoveResource(ctx)
+
+			return
+		}
 		return
+	}
+	if state.WaitForDeletion.ValueBool() {
+
+		deleteTimeout, diagsErr := state.Timeouts.Delete(ctx, defaultDeleteTimeout)
+		if diagsErr != nil {
+			diagsErr.AddError("Error deleting service", fmt.Sprintf("Unable to delete service, got error: %s", err))
+			resp.Diagnostics.Append(diagsErr...)
+		}
+
+		err = sdkresource.RetryContext(ctx, deleteTimeout, func() *sdkresource.RetryError {
+
+			service, err := r.client.GetServiceByID(ctx, state.ID.ValueString())
+			if err != nil {
+				if errors.Is(err, skysql.ErrorServiceNotFound) {
+					return nil
+				}
+				return sdkresource.NonRetryableError(fmt.Errorf("error retrieving service details: %v", err))
+			}
+
+			return sdkresource.RetryableError(fmt.Errorf("expected that the instance was deleted, but it was in state %s", service.Status))
+		})
+
+		if err != nil {
+			resp.Diagnostics.AddError("Error delete service", fmt.Sprintf("Unable to delete service, got error: %s", err))
+		}
 	}
 }
 

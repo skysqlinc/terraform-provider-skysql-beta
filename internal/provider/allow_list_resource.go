@@ -2,6 +2,7 @@ package provider
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"github.com/hashicorp/terraform-plugin-framework-timeouts/resource/timeouts"
 	"github.com/hashicorp/terraform-plugin-framework/path"
@@ -57,6 +58,7 @@ func (r *ServiceAllowListResource) Schema(ctx context.Context, req resource.Sche
 				Description: "The ID of the service to manage the allow list for",
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.UseStateForUnknown(),
+					stringplanmodifier.RequiresReplace(),
 				}},
 			"allow_list": schema.ListNestedAttribute{
 				Required:    true,
@@ -220,6 +222,11 @@ func (r *ServiceAllowListResource) Update(ctx context.Context, req resource.Upda
 		return
 	}
 
+	// Prevent panic if the provider has not been configured.
+	if plan == nil {
+		return
+	}
+
 	allowListUpdateRequest := make([]provisioning.AllowListItem, len(plan.AllowList))
 	for i := range plan.AllowList {
 		allowListUpdateRequest[i].IPAddress = plan.AllowList[i].IPAddress
@@ -228,6 +235,14 @@ func (r *ServiceAllowListResource) Update(ctx context.Context, req resource.Upda
 
 	allowListResp, err := r.client.UpdateServiceAllowListByID(ctx, plan.ID.ValueString(), allowListUpdateRequest)
 	if err != nil {
+		if errors.Is(err, skysql.ErrorServiceNotFound) {
+			tflog.Warn(ctx, "SkySQL service not found, removing from state", map[string]interface{}{
+				"id": state.ID.ValueString(),
+			})
+			resp.State.RemoveResource(ctx)
+
+			return
+		}
 		resp.Diagnostics.AddError("Error updating service allow list", err.Error())
 		return
 	}
@@ -289,6 +304,14 @@ func (r *ServiceAllowListResource) Delete(ctx context.Context, req resource.Dele
 
 	_, err := r.client.UpdateServiceAllowListByID(ctx, data.ID.ValueString(), allowListUpdateRequest)
 	if err != nil {
+		if errors.Is(err, skysql.ErrorServiceNotFound) {
+			tflog.Warn(ctx, "SkySQL service not found, removing from state", map[string]interface{}{
+				"id": data.ID.ValueString(),
+			})
+			resp.State.RemoveResource(ctx)
+
+			return
+		}
 		resp.Diagnostics.AddError("Error updating service allow list", err.Error())
 		return
 	}
@@ -308,7 +331,7 @@ func (r *ServiceAllowListResource) Delete(ctx context.Context, req resource.Dele
 
 		createTimeout, diagsErr := data.Timeouts.Create(ctx, defaultCreateTimeout)
 		if diagsErr != nil {
-			diagsErr.AddError("Error creating service", fmt.Sprintf("Unable to create service, got error: %s", err))
+			diagsErr.AddError("Error deleting allowlist", fmt.Sprintf("Unable to delete service allowlist, got error: %s", err))
 			resp.Diagnostics.Append(diagsErr...)
 		}
 
@@ -327,7 +350,7 @@ func (r *ServiceAllowListResource) Delete(ctx context.Context, req resource.Dele
 		})
 
 		if err != nil {
-			resp.Diagnostics.AddError("Error updating service", fmt.Sprintf("Unable to update service, got error: %s", err))
+			resp.Diagnostics.AddError("Error deleting allowlist", fmt.Sprintf("Unable to update allowlist, got error: %s", err))
 		}
 	}
 }
