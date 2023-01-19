@@ -3,7 +3,6 @@ page_title: "skysql_allow_list Resource - terraform-provider-skysql-beta"
 subcategory: ""
 description: |-
   Manages the allow list for a service
-
 ---
 
 # skysql_allow_list (Resource)
@@ -56,4 +55,3 @@ Optional:
 Optional:
 
 - `create` (String)
-

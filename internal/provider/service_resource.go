@@ -26,6 +26,7 @@ import (
 
 const defaultCreateTimeout = 60 * time.Minute
 const defaultDeleteTimeout = 60 * time.Minute
+const defaultUpdateTimeout = 60 * time.Minute
 
 var rxServiceName = regexp.MustCompile("(^[a-z][a-z0-9-]+$)")
 
@@ -46,27 +47,31 @@ type ServiceResource struct {
 
 // ServiceResourceModel describes the resource data model.
 type ServiceResourceModel struct {
-	ID              types.String   `tfsdk:"id"`
-	Name            types.String   `tfsdk:"name"`
-	ProjectID       types.String   `tfsdk:"project_id"`
-	ServiceType     types.String   `tfsdk:"service_type"`
-	Provider        types.String   `tfsdk:"cloud_provider"`
-	Region          types.String   `tfsdk:"region"`
-	Version         types.String   `tfsdk:"version"`
-	Nodes           types.Int64    `tfsdk:"nodes"`
-	Architecture    types.String   `tfsdk:"architecture"`
-	Size            types.String   `tfsdk:"size"`
-	Topology        types.String   `tfsdk:"topology"`
-	Storage         types.Int64    `tfsdk:"storage"`
-	VolumeIOPS      types.Int64    `tfsdk:"volume_iops"`
-	SSLEnabled      types.Bool     `tfsdk:"ssl_enabled"`
-	NoSQLEnabled    types.Bool     `tfsdk:"nosql_enabled"`
-	VolumeType      types.String   `tfsdk:"volume_type"`
-	WaitForCreation types.Bool     `tfsdk:"wait_for_creation"`
-	Timeouts        timeouts.Value `tfsdk:"timeouts"`
-	Mechanism       types.String   `tfsdk:"endpoint_mechanism"`
-	AllowedAccounts types.List     `tfsdk:"endpoint_allowed_accounts"`
-	WaitForDeletion types.Bool     `tfsdk:"wait_for_deletion"`
+	ID                 types.String   `tfsdk:"id"`
+	Name               types.String   `tfsdk:"name"`
+	ProjectID          types.String   `tfsdk:"project_id"`
+	ServiceType        types.String   `tfsdk:"service_type"`
+	Provider           types.String   `tfsdk:"cloud_provider"`
+	Region             types.String   `tfsdk:"region"`
+	Version            types.String   `tfsdk:"version"`
+	Nodes              types.Int64    `tfsdk:"nodes"`
+	Architecture       types.String   `tfsdk:"architecture"`
+	Size               types.String   `tfsdk:"size"`
+	Topology           types.String   `tfsdk:"topology"`
+	Storage            types.Int64    `tfsdk:"storage"`
+	VolumeIOPS         types.Int64    `tfsdk:"volume_iops"`
+	SSLEnabled         types.Bool     `tfsdk:"ssl_enabled"`
+	NoSQLEnabled       types.Bool     `tfsdk:"nosql_enabled"`
+	VolumeType         types.String   `tfsdk:"volume_type"`
+	WaitForCreation    types.Bool     `tfsdk:"wait_for_creation"`
+	Timeouts           timeouts.Value `tfsdk:"timeouts"`
+	Mechanism          types.String   `tfsdk:"endpoint_mechanism"`
+	AllowedAccounts    types.List     `tfsdk:"endpoint_allowed_accounts"`
+	WaitForDeletion    types.Bool     `tfsdk:"wait_for_deletion"`
+	ReplicationEnabled types.Bool     `tfsdk:"replication_enabled"`
+	PrimaryHost        types.String   `tfsdk:"primary_host"`
+	IsActive           types.Bool     `tfsdk:"is_active"`
+	WaitForUpdate      types.Bool     `tfsdk:"wait_for_update"`
 }
 
 // ServiceResourceNamedPortModel is an endpoint port
@@ -107,7 +112,8 @@ func (r *ServiceResource) Schema(ctx context.Context, req resource.SchemaRequest
 				},
 			},
 			"project_id": schema.StringAttribute{
-				Required:    true,
+				Required:    false,
+				Optional:    true,
 				Description: "The ID of the project to create the service in",
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.RequiresReplace(),
@@ -230,6 +236,32 @@ func (r *ServiceResource) Schema(ctx context.Context, req resource.SchemaRequest
 					boolplanmodifier.UseStateForUnknown(),
 				},
 			},
+			"replication_enabled": schema.BoolAttribute{
+				Optional:    true,
+				Description: "Whether to enable global replication. Valid values are: true or false. Works for xpand-direct topology only",
+				PlanModifiers: []planmodifier.Bool{
+					boolplanmodifier.RequiresReplace(),
+				},
+			},
+			"primary_host": schema.StringAttribute{
+				Optional:    true,
+				Description: "The primary host of the service",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.RequiresReplace(),
+				},
+			},
+			"is_active": schema.BoolAttribute{
+				Optional:    true,
+				Computed:    true,
+				Description: "Whether the service is active",
+			},
+			"wait_for_update": schema.BoolAttribute{
+				Optional:    true,
+				Description: "Whether to wait for the service to be updated. Valid values are: true or false",
+				PlanModifiers: []planmodifier.Bool{
+					boolplanmodifier.UseStateForUnknown(),
+				},
+			},
 		},
 		Blocks: map[string]schema.Block{
 			"timeouts": timeouts.Block(ctx, timeouts.Opts{
@@ -272,22 +304,24 @@ func (r *ServiceResource) Create(ctx context.Context, req resource.CreateRequest
 	}
 
 	createServiceRequest := &provisioning.CreateServiceRequest{
-		Name:         data.Name.ValueString(),
-		ProjectID:    data.ProjectID.ValueString(),
-		ServiceType:  data.ServiceType.ValueString(),
-		Provider:     data.Provider.ValueString(),
-		Region:       data.Region.ValueString(),
-		Version:      data.Version.ValueString(),
-		Nodes:        uint(data.Nodes.ValueInt64()),
-		Architecture: data.Architecture.ValueString(),
-		Size:         data.Size.ValueString(),
-		Topology:     data.Topology.ValueString(),
-		Storage:      uint(data.Storage.ValueInt64()),
-		VolumeIOPS:   uint(data.VolumeIOPS.ValueInt64()),
-		SSLEnabled:   data.SSLEnabled.ValueBool(),
-		NoSQLEnabled: data.NoSQLEnabled.ValueBool(),
-		VolumeType:   data.VolumeType.ValueString(),
-		Mechanism:    data.Mechanism.ValueString(),
+		Name:               data.Name.ValueString(),
+		ProjectID:          data.ProjectID.ValueString(),
+		ServiceType:        data.ServiceType.ValueString(),
+		Provider:           data.Provider.ValueString(),
+		Region:             data.Region.ValueString(),
+		Version:            data.Version.ValueString(),
+		Nodes:              uint(data.Nodes.ValueInt64()),
+		Architecture:       data.Architecture.ValueString(),
+		Size:               data.Size.ValueString(),
+		Topology:           data.Topology.ValueString(),
+		Storage:            uint(data.Storage.ValueInt64()),
+		VolumeIOPS:         uint(data.VolumeIOPS.ValueInt64()),
+		SSLEnabled:         data.SSLEnabled.ValueBool(),
+		NoSQLEnabled:       data.NoSQLEnabled.ValueBool(),
+		VolumeType:         data.VolumeType.ValueString(),
+		Mechanism:          data.Mechanism.ValueString(),
+		ReplicationEnabled: data.ReplicationEnabled.ValueBool(),
+		PrimaryHost:        data.PrimaryHost.ValueString(),
 	}
 
 	diag := data.AllowedAccounts.ElementsAs(ctx, &createServiceRequest.AllowedAccounts, false)
@@ -316,6 +350,8 @@ func (r *ServiceResource) Create(ctx context.Context, req resource.CreateRequest
 	} else {
 		data.VolumeType = types.StringNull()
 	}
+
+	data.IsActive = types.BoolValue(service.IsActive)
 
 	// Save data into Terraform state
 	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
@@ -408,6 +444,13 @@ func (r *ServiceResource) readServiceState(ctx context.Context, data *ServiceRes
 	if !data.VolumeType.IsNull() {
 		data.VolumeType = types.StringValue(service.StorageVolume.VolumeType)
 	}
+	if !data.ReplicationEnabled.IsNull() {
+		data.ReplicationEnabled = types.BoolValue(service.ReplicationEnabled)
+	}
+	if !data.PrimaryHost.IsNull() {
+		data.PrimaryHost = types.StringValue(service.PrimaryHost)
+	}
+	data.IsActive = types.BoolValue(service.IsActive)
 	return nil
 }
 
@@ -442,10 +485,60 @@ func (r *ServiceResource) Update(ctx context.Context, req resource.UpdateRequest
 		resp.Diagnostics.AddError("Can not read service", err.Error())
 		return
 	}
+
+	state.WaitForUpdate = plan.WaitForUpdate
+	state.WaitForCreation = plan.WaitForCreation
+	state.WaitForDeletion = plan.WaitForDeletion
+	state.Timeouts = plan.Timeouts
 	// Save updated data into Terraform state
 	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
 	if resp.Diagnostics.HasError() {
 		return
+	}
+	if !plan.IsActive.IsNull() && !state.IsActive.IsNull() && plan.IsActive.ValueBool() != state.IsActive.ValueBool() {
+		tflog.Info(ctx, "Updating service active state", map[string]interface{}{
+			"id":        state.ID.ValueString(),
+			"is_active": plan.IsActive.ValueBool(),
+		})
+		err = r.client.SetServicePowerState(ctx, state.ID.ValueString(), plan.IsActive.ValueBool())
+		if err != nil {
+			resp.Diagnostics.AddError("Can not update service", err.Error())
+			return
+		}
+		state.IsActive = plan.IsActive
+		// Save updated data into Terraform state
+		resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
+		if resp.Diagnostics.HasError() {
+			return
+		}
+		r.waitForUpdate(ctx, state, err, resp)
+	}
+}
+
+var serviceUpdateWaitStates = []string{"ready", "failed", "stopped"}
+
+func (r *ServiceResource) waitForUpdate(ctx context.Context, state *ServiceResourceModel, err error, resp *resource.UpdateResponse) {
+	if state.WaitForUpdate.ValueBool() {
+		err = sdkresource.RetryContext(ctx, defaultUpdateTimeout, func() *sdkresource.RetryError {
+			service, err := r.client.GetServiceByID(ctx, state.ID.ValueString())
+			if err != nil {
+				return sdkresource.NonRetryableError(fmt.Errorf("error retrieving service details: %v", err))
+			}
+
+			if Contains[string](serviceUpdateWaitStates, service.Status) {
+				return nil
+			}
+
+			if service.Status == "failed" {
+				return sdkresource.NonRetryableError(errors.New("service creation failed"))
+			}
+
+			return sdkresource.RetryableError(fmt.Errorf("expected instance to be ready or failed or stopped state but was in state %s", service.Status))
+		})
+
+		if err != nil {
+			resp.Diagnostics.AddError("Error updating service", fmt.Sprintf("Unable to update service, got error: %s", err))
+		}
 	}
 }
 

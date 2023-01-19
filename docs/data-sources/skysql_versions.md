@@ -3,7 +3,6 @@ page_title: "skysql_versions Data Source - terraform-provider-skysql-beta"
 subcategory: ""
 description: |-
   SkySQL server versions
-
 ---
 
 # skysql_versions (Data Source)

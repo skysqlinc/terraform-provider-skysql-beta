@@ -222,6 +222,13 @@ func (r *ServiceAllowListResource) Update(ctx context.Context, req resource.Upda
 		return
 	}
 
+	// Read Terraform state data into the model
+	resp.Diagnostics.Append(req.State.Get(ctx, &state)...)
+
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
 	// Prevent panic if the provider has not been configured.
 	if plan == nil {
 		return

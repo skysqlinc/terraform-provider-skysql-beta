@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"github.com/mariadb-corporation/terraform-provider-skysql-beta/internal/skysql"
+	"github.com/matryer/resync"
 	"os"
 
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
@@ -15,6 +16,11 @@ import (
 
 // Ensure skySQLProvider satisfies various provider interfaces.
 var _ provider.Provider = &skySQLProvider{}
+
+var configureOnce resync.Once
+
+var accessToken string
+var baseURL string
 
 // skySQLProvider defines the provider implementation.
 type skySQLProvider struct {
@@ -95,20 +101,22 @@ func (p *skySQLProvider) Configure(ctx context.Context, req provider.ConfigureRe
 
 	client := skysql.New(baseURL, accessToken)
 
-	_, err := client.GetVersions(ctx, skysql.WithPageSize(1))
-	if err != nil {
-		if errors.Is(err, skysql.ErrorUnauthorized) {
+	configureOnce.Do(func() {
+		_, err := client.GetVersions(ctx, skysql.WithPageSize(1))
+		if err != nil {
+			if errors.Is(err, skysql.ErrorUnauthorized) {
+				resp.Diagnostics.AddError(
+					"Unable to connect to SkySQL",
+					"While configuring the provider, the API access token was not valid.",
+				)
+				return
+			}
 			resp.Diagnostics.AddError(
 				"Unable to connect to SkySQL",
-				"While configuring the provider, the API access token was not valid.",
+				"While configuring the provider, the API returns error: "+err.Error(),
 			)
-			return
 		}
-		resp.Diagnostics.AddError(
-			"Unable to connect to SkySQL",
-			"While configuring the provider, the API returns error: "+err.Error(),
-		)
-	}
+	})
 
 	if resp.Diagnostics.HasError() {
 		return

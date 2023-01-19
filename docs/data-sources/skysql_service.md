@@ -3,7 +3,6 @@ page_title: "skysql_service Data Source - terraform-provider-skysql-beta"
 subcategory: ""
 description: |-
   Returns an full SkySQL service details
-
 ---
 
 # skysql_service (Data Source)

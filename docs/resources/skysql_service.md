@@ -3,7 +3,6 @@ page_title: "skysql_service Resource - terraform-provider-skysql-beta"
 subcategory: ""
 description: |-
   Creates and manages a service in SkySQL
-
 ---
 
 # skysql_service (Resource)
@@ -42,7 +41,6 @@ resource "skysql_service" "default" {
 - `cloud_provider` (String) The cloud provider to create the service in. Valid values are: aws or gcp
 - `name` (String) The name of the service
 - `nodes` (Number) The number of nodes
-- `project_id` (String) The ID of the project to create the service in
 - `region` (String) The region to create the service in. Value should be valid for a specific cloud provider
 - `service_type` (String) The type of service to create. Valid values are: analytical or transactional
 - `size` (String) The size of the service. Valid values are: sky-2x4, sky-2x8 etc
@@ -56,12 +54,17 @@ resource "skysql_service" "default" {
 - `architecture` (String) The architecture of the service. Valid values are: amd64 or arm64
 - `endpoint_allowed_accounts` (List of String) The list of cloud accounts (aws account ids or gcp projects) that are allowed to access the service
 - `endpoint_mechanism` (String) The endpoint mechanism to use. Valid values are: privatelink or nlb
+- `is_active` (Boolean) Whether the service is active
 - `nosql_enabled` (Boolean) Whether to enable NoSQL. Valid values are: true or false
+- `primary_host` (String) The primary host of the service
+- `project_id` (String) The ID of the project to create the service in
+- `replication_enabled` (Boolean) Whether to enable global replication. Valid values are: true or false. Works for xpand-direct topology only
 - `timeouts` (Block, Optional) (see [below for nested schema](#nestedblock--timeouts))
 - `volume_iops` (Number) The volume IOPS. This is only applicable for AWS
 - `volume_type` (String) The volume type. Valid values are: gp2 and io1. This is only applicable for AWS
 - `wait_for_creation` (Boolean) Whether to wait for the service to be created. Valid values are: true or false
 - `wait_for_deletion` (Boolean) Whether to wait for the service to be deleted. Valid values are: true or false
+- `wait_for_update` (Boolean) Whether to wait for the service to be updated. Valid values are: true or false
 
 ### Read-Only
 
@@ -75,4 +78,3 @@ Optional:
 - `create` (String)
 - `delete` (String)
 - `update` (String)
-

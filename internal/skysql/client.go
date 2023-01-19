@@ -184,3 +184,19 @@ func handleError(resp *resty.Response) error {
 	}
 	return errors.New(resp.Status())
 }
+
+func (c *Client) SetServicePowerState(ctx context.Context, serviceID string, isActive bool) error {
+	resp, err := c.HTTPClient.R().
+		SetHeader("Accept", "application/json").
+		SetContext(ctx).
+		SetBody(&provisioning.PowerState{IsActive: isActive}).
+		Post("/provisioning/v1/services/" + serviceID + "/power")
+	if err != nil {
+		return err
+	}
+	if resp.IsError() {
+		return handleError(resp)
+	}
+
+	return err
+}
