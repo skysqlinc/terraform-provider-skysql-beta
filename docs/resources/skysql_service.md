@@ -52,6 +52,7 @@ resource "skysql_service" "default" {
 ### Optional
 
 - `architecture` (String) The architecture of the service. Valid values are: amd64 or arm64
+- `deletion_protection` (Boolean) Whether to enable deletion protection. Valid values are: true or false. Default is true
 - `endpoint_allowed_accounts` (List of String) The list of cloud accounts (aws account ids or gcp projects) that are allowed to access the service
 - `endpoint_mechanism` (String) The endpoint mechanism to use. Valid values are: privatelink or nlb
 - `is_active` (Boolean) Whether the service is active
