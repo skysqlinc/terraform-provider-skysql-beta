@@ -90,6 +90,7 @@ resource "skysql_service" default {
   version        = "10.6.11-6-1"
   wait_for_creation = true
   wait_for_deletion = true
+  deletion_protection = false
 }
 	            `,
 			before: func(r *require.Assertions) {
@@ -214,6 +215,7 @@ resource "skysql_service" default {
 		 version        = "10.6.11-6-1"
 		 wait_for_creation = true
 		 wait_for_deletion = true
+		 deletion_protection = false
 		}
 			            `,
 			before: func(r *require.Assertions) {

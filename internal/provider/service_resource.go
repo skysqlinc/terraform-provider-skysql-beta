@@ -72,6 +72,7 @@ type ServiceResourceModel struct {
 	PrimaryHost        types.String   `tfsdk:"primary_host"`
 	IsActive           types.Bool     `tfsdk:"is_active"`
 	WaitForUpdate      types.Bool     `tfsdk:"wait_for_update"`
+	DeletionProtection types.Bool     `tfsdk:"deletion_protection"`
 }
 
 // ServiceResourceNamedPortModel is an endpoint port
@@ -253,6 +254,15 @@ func (r *ServiceResource) Schema(ctx context.Context, req resource.SchemaRequest
 				Optional:    true,
 				Description: "Whether to wait for the service to be updated. Valid values are: true or false",
 				PlanModifiers: []planmodifier.Bool{
+					boolplanmodifier.UseStateForUnknown(),
+				},
+			},
+			"deletion_protection": schema.BoolAttribute{
+				Optional:    true,
+				Computed:    true,
+				Description: "Whether to enable deletion protection. Valid values are: true or false. Default is true",
+				PlanModifiers: []planmodifier.Bool{
+					boolDefault(true),
 					boolplanmodifier.UseStateForUnknown(),
 				},
 			},
@@ -485,6 +495,7 @@ func (r *ServiceResource) Update(ctx context.Context, req resource.UpdateRequest
 	state.WaitForCreation = plan.WaitForCreation
 	state.WaitForDeletion = plan.WaitForDeletion
 	state.Timeouts = plan.Timeouts
+	state.DeletionProtection = plan.DeletionProtection
 	// Save updated data into Terraform state
 	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
 	if resp.Diagnostics.HasError() {
@@ -530,6 +541,8 @@ func (r *ServiceResource) Update(ctx context.Context, req resource.UpdateRequest
 		visibility := "public"
 		if plan.Mechanism.ValueString() == "privatelink" {
 			visibility = "private"
+		} else {
+			planAllowedAccounts = []string{}
 		}
 
 		_, err := r.client.ModifyServiceEndpoints(ctx,
@@ -589,6 +602,11 @@ func (r *ServiceResource) Delete(ctx context.Context, req resource.DeleteRequest
 	resp.Diagnostics.Append(req.State.Get(ctx, &state)...)
 
 	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	if state.DeletionProtection.ValueBool() {
+		resp.Diagnostics.AddError("Can not delete service", "Deletion protection is enabled")
 		return
 	}
 

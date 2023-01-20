@@ -16,7 +16,7 @@ import (
 	"time"
 )
 
-func TestServiceResourcePrivateLink(t *testing.T) {
+func TestServiceResourceDeletionProtection(t *testing.T) {
 	const serviceID = "dbdgf42002418"
 
 	testUrl, expectRequest, close := mockSkySQLAPI(t)
@@ -214,7 +214,33 @@ func TestServiceResourcePrivateLink(t *testing.T) {
 		json.NewEncoder(w).Encode(&service)
 		w.WriteHeader(http.StatusOK)
 	})
-
+	// Refresh state
+	expectRequest(func(w http.ResponseWriter, req *http.Request) {
+		r.Equal(
+			fmt.Sprintf("%s %s/%s", http.MethodGet, "/provisioning/v1/services", serviceID),
+			fmt.Sprintf("%s %s", req.Method, req.URL.Path))
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(&service)
+		w.WriteHeader(http.StatusOK)
+	})
+	// Refresh state
+	expectRequest(func(w http.ResponseWriter, req *http.Request) {
+		r.Equal(
+			fmt.Sprintf("%s %s/%s", http.MethodGet, "/provisioning/v1/services", serviceID),
+			fmt.Sprintf("%s %s", req.Method, req.URL.Path))
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(&service)
+		w.WriteHeader(http.StatusOK)
+	})
+	// Refresh state
+	expectRequest(func(w http.ResponseWriter, req *http.Request) {
+		r.Equal(
+			fmt.Sprintf("%s %s/%s", http.MethodGet, "/provisioning/v1/services", serviceID),
+			fmt.Sprintf("%s %s", req.Method, req.URL.Path))
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(&service)
+		w.WriteHeader(http.StatusOK)
+	})
 	expectRequest(func(w http.ResponseWriter, req *http.Request) {
 		r.Equal(
 			fmt.Sprintf("%s %s/%s", http.MethodDelete, "/provisioning/v1/services", serviceID),
@@ -258,11 +284,11 @@ resource "skysql_service" default {
   version        = "10.6.11-6-1"
   wait_for_creation = true
   wait_for_deletion = true
-  deletion_protection = false
 }
 	            `,
 				Check: resource.ComposeAggregateTestCheckFunc([]resource.TestCheckFunc{
 					resource.TestCheckResourceAttr("skysql_service.default", "id", serviceID),
+					resource.TestCheckResourceAttr("skysql_service.default", "deletion_protection", "true"),
 				}...),
 			},
 			{
@@ -289,6 +315,34 @@ resource "skysql_service" default {
 				            `,
 				Check: resource.ComposeAggregateTestCheckFunc([]resource.TestCheckFunc{
 					resource.TestCheckResourceAttr("skysql_service.default", "id", serviceID),
+					resource.TestCheckResourceAttr("skysql_service.default", "deletion_protection", "false"),
+				}...),
+			},
+			{
+				Config: `
+			resource "skysql_service" default {
+			 service_type   = "transactional"
+			 topology       = "standalone"
+			 cloud_provider = "gcp"
+			 region         = "us-central1"
+			 name           = "vf-test-gcp"
+			 architecture   = "amd64"
+			 nodes          = 1
+			 size           = "sky-2x8"
+			 storage        = 100
+			 ssl_enabled    = true
+			 version        = "10.6.11-6-1"
+			 wait_for_creation = true
+			 wait_for_deletion = true
+			 wait_for_update = true
+			 endpoint_mechanism      = "privatelink"
+			 endpoint_allowed_accounts = ["mdb-cnewport"]
+			 is_active      = false
+			}
+				            `,
+				Check: resource.ComposeAggregateTestCheckFunc([]resource.TestCheckFunc{
+					resource.TestCheckResourceAttr("skysql_service.default", "id", serviceID),
+					resource.TestCheckResourceAttr("skysql_service.default", "deletion_protection", "true"),
 				}...),
 			},
 			{
