@@ -11,7 +11,6 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/boolplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/int64planmodifier"
-	"github.com/hashicorp/terraform-plugin-framework/resource/schema/listplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
@@ -20,6 +19,7 @@ import (
 	sdkresource "github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
 	"github.com/mariadb-corporation/terraform-provider-skysql-beta/internal/skysql"
 	"github.com/mariadb-corporation/terraform-provider-skysql-beta/internal/skysql/provisioning"
+	"reflect"
 	"regexp"
 	"time"
 )
@@ -217,17 +217,11 @@ func (r *ServiceResource) Schema(ctx context.Context, req resource.SchemaRequest
 			"endpoint_mechanism": schema.StringAttribute{
 				Optional:    true,
 				Description: "The endpoint mechanism to use. Valid values are: privatelink or nlb",
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.RequiresReplace(),
-				},
 			},
 			"endpoint_allowed_accounts": schema.ListAttribute{
 				Optional:    true,
 				Description: "The list of cloud accounts (aws account ids or gcp projects) that are allowed to access the service",
 				ElementType: types.StringType,
-				PlanModifiers: []planmodifier.List{
-					listplanmodifier.RequiresReplace(),
-				},
 			},
 			"wait_for_deletion": schema.BoolAttribute{
 				Optional:    true,
@@ -451,6 +445,7 @@ func (r *ServiceResource) readServiceState(ctx context.Context, data *ServiceRes
 		data.PrimaryHost = types.StringValue(service.PrimaryHost)
 	}
 	data.IsActive = types.BoolValue(service.IsActive)
+
 	return nil
 }
 
@@ -495,7 +490,7 @@ func (r *ServiceResource) Update(ctx context.Context, req resource.UpdateRequest
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	if !plan.IsActive.IsNull() && !state.IsActive.IsNull() && plan.IsActive.ValueBool() != state.IsActive.ValueBool() {
+	if !plan.IsActive.IsUnknown() && plan.IsActive.ValueBool() != state.IsActive.ValueBool() {
 		tflog.Info(ctx, "Updating service active state", map[string]interface{}{
 			"id":        state.ID.ValueString(),
 			"is_active": plan.IsActive.ValueBool(),
@@ -512,6 +507,51 @@ func (r *ServiceResource) Update(ctx context.Context, req resource.UpdateRequest
 			return
 		}
 		r.waitForUpdate(ctx, state, err, resp)
+	}
+
+	var planAllowedAccounts []string
+	diag := plan.AllowedAccounts.ElementsAs(ctx, &planAllowedAccounts, false)
+	if diag.HasError() {
+		return
+	}
+
+	var stateAllowedAccounts []string
+	diag = state.AllowedAccounts.ElementsAs(ctx, &stateAllowedAccounts, false)
+	if diag.HasError() {
+		return
+	}
+
+	if !(reflect.DeepEqual(plan.Mechanism.ValueString(), state.Mechanism.ValueString()) ||
+		reflect.DeepEqual(planAllowedAccounts, stateAllowedAccounts)) {
+		tflog.Info(ctx, "Updating service allowed accounts", map[string]interface{}{
+			"id": state.ID.ValueString(),
+		})
+
+		visibility := "public"
+		if plan.Mechanism.ValueString() == "privatelink" {
+			visibility = "private"
+		}
+
+		_, err := r.client.ModifyServiceEndpoints(ctx,
+			state.ID.ValueString(),
+			plan.Mechanism.ValueString(),
+			planAllowedAccounts,
+			visibility)
+		if err != nil {
+			resp.Diagnostics.AddError("Can not update service", err.Error())
+			return
+		}
+
+		state.AllowedAccounts = plan.AllowedAccounts
+		state.Mechanism = plan.Mechanism
+
+		// Save updated data into Terraform state
+		resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
+		if resp.Diagnostics.HasError() {
+			return
+		}
+		r.waitForUpdate(ctx, state, err, resp)
+		return
 	}
 }
 
@@ -640,4 +680,5 @@ func (r *ServiceResource) ModifyPlan(ctx context.Context, req resource.ModifyPla
 			return
 		}
 	}
+	resp.Diagnostics.Append(req.Plan.Set(ctx, &config)...)
 }

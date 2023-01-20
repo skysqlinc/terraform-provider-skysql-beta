@@ -33,6 +33,7 @@ func (c *Client) GetProjects(ctx context.Context) ([]organization.Project, error
 	resp, err := c.HTTPClient.R().
 		SetHeader("Accept", "application/json").
 		SetResult([]organization.Project{}).
+		SetError(&ErrorResponse{}).
 		SetContext(ctx).
 		Get("/organization/v1/projects")
 	if resp.IsError() {
@@ -55,6 +56,7 @@ func (c *Client) GetVersions(ctx context.Context, options ...func(url.Values)) (
 	resp, err := request.
 		SetHeader("Accept", "application/json").
 		SetResult([]provisioning.Version{}).
+		SetError(&ErrorResponse{}).
 		SetContext(ctx).
 		Get("/provisioning/v1/versions")
 	if err != nil {
@@ -71,6 +73,7 @@ func (c *Client) GetServiceByID(ctx context.Context, serviceID string) (*provisi
 	resp, err := c.HTTPClient.R().
 		SetHeader("Accept", "application/json").
 		SetResult(provisioning.Service{}).
+		SetError(&ErrorResponse{}).
 		SetContext(ctx).
 		Get("/provisioning/v1/services/" + serviceID)
 	if err != nil {
@@ -86,7 +89,7 @@ func (c *Client) CreateService(ctx context.Context, req *provisioning.CreateServ
 	resp, err := c.HTTPClient.R().
 		SetHeader("Accept", "application/json").
 		SetResult(provisioning.Service{}).
-		SetError(ErrorResponse{}).
+		SetError(&ErrorResponse{}).
 		SetContext(ctx).
 		SetBody(req).
 		Post("/provisioning/v1/services")
@@ -104,7 +107,7 @@ func (c *Client) CreateService(ctx context.Context, req *provisioning.CreateServ
 func (c *Client) DeleteServiceByID(ctx context.Context, serviceID string) error {
 	resp, err := c.HTTPClient.R().
 		SetHeader("Accept", "application/json").
-		SetError(ErrorResponse{}).
+		SetError(&ErrorResponse{}).
 		SetContext(ctx).
 		Delete("/provisioning/v1/services/" + serviceID)
 	if err != nil {
@@ -122,6 +125,7 @@ func (c *Client) GetServiceCredentialsByID(ctx context.Context, serviceID string
 	resp, err := c.HTTPClient.R().
 		SetHeader("Accept", "application/json").
 		SetResult(provisioning.Credentials{}).
+		SetError(&ErrorResponse{}).
 		SetContext(ctx).
 		Get("/provisioning/v1/services/" + serviceID + "/security/credentials")
 	if err != nil {
@@ -137,6 +141,7 @@ func (c *Client) UpdateServiceAllowListByID(ctx context.Context, serviceID strin
 	resp, err := c.HTTPClient.R().
 		SetHeader("Accept", "application/json").
 		SetResult(provisioning.ReadAllowListResponse{}).
+		SetError(&ErrorResponse{}).
 		SetContext(ctx).
 		SetBody(allowlist).
 		Put("/provisioning/v1/services/" + serviceID + "/security/allowlist")
@@ -154,9 +159,9 @@ func (c *Client) UpdateServiceAllowListByID(ctx context.Context, serviceID strin
 func (c *Client) ReadServiceAllowListByID(ctx context.Context, serviceID string) (provisioning.ReadAllowListResponse, error) {
 	resp, err := c.HTTPClient.R().
 		SetHeader("Accept", "application/json").
-		SetResult([]provisioning.AllowListItem{}).
 		SetContext(ctx).
 		SetResult(provisioning.ReadAllowListResponse{}).
+		SetError(&ErrorResponse{}).
 		Get("/provisioning/v1/services/" + serviceID + "/security/allowlist")
 	if err != nil {
 		return nil, err
@@ -190,6 +195,7 @@ func (c *Client) SetServicePowerState(ctx context.Context, serviceID string, isA
 		SetHeader("Accept", "application/json").
 		SetContext(ctx).
 		SetBody(&provisioning.PowerState{IsActive: isActive}).
+		SetError(&ErrorResponse{}).
 		Post("/provisioning/v1/services/" + serviceID + "/power")
 	if err != nil {
 		return err
@@ -199,4 +205,35 @@ func (c *Client) SetServicePowerState(ctx context.Context, serviceID string, isA
 	}
 
 	return err
+}
+
+func (c *Client) ModifyServiceEndpoints(
+	ctx context.Context,
+	serviceID string,
+	mechanism string,
+	allowedAccounts []string,
+	visibility string,
+) (*provisioning.ServiceEndpoint, error) {
+	resp, err := c.HTTPClient.R().
+		SetHeader("Accept", "application/json").
+		SetContext(ctx).
+		SetBody(&provisioning.PatchServiceEndpointsRequest{
+			{Mechanism: mechanism,
+				AllowedAccounts: allowedAccounts,
+				Visibility:      visibility},
+		}).
+		SetResult(provisioning.PatchServiceEndpointsResponse{}).
+		SetError(&ErrorResponse{}).
+		Patch("/provisioning/v1/services/" + serviceID + "/endpoints")
+	if err != nil {
+		return nil, err
+	}
+	if resp.IsError() {
+		return nil, handleError(resp)
+	}
+	response := *resp.Result().(*provisioning.PatchServiceEndpointsResponse)
+	if response == nil {
+		response = make(provisioning.PatchServiceEndpointsResponse, 0)
+	}
+	return &response[0], err
 }

@@ -6,6 +6,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/providerserver"
 	"github.com/hashicorp/terraform-plugin-go/tfprotov6"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
+	"github.com/mariadb-corporation/terraform-provider-skysql-beta/internal/skysql"
 	"github.com/mariadb-corporation/terraform-provider-skysql-beta/internal/skysql/provisioning"
 	"github.com/stretchr/testify/require"
 	"log"
@@ -13,6 +14,7 @@ import (
 	"net/http/httptest"
 	"net/http/httputil"
 	"os"
+	"regexp"
 	"testing"
 	"time"
 )
@@ -60,7 +62,8 @@ func mockSkySQLAPI(t *testing.T) (string, func(http.HandlerFunc), func()) {
 func TestServiceResource(t *testing.T) {
 	const serviceID = "dbdgf42002418"
 
-	testUrl, expectRequest, _ := mockSkySQLAPI(t)
+	testUrl, expectRequest, close := mockSkySQLAPI(t)
+	defer close()
 	os.Setenv("TF_SKYSQL_API_ACCESS_TOKEN", "[token]")
 	os.Setenv("TF_SKYSQL_API_BASE_URL", testUrl)
 	tests := []struct {
@@ -68,6 +71,7 @@ func TestServiceResource(t *testing.T) {
 		testResource string
 		before       func(r *require.Assertions)
 		checks       []resource.TestCheckFunc
+		expectError  *regexp.Regexp
 	}{
 		{
 			name: "create service",
@@ -89,13 +93,14 @@ resource "skysql_service" default {
 }
 	            `,
 			before: func(r *require.Assertions) {
+				configureOnce.Reset()
 				var service *provisioning.Service
 				expectRequest(func(w http.ResponseWriter, req *http.Request) {
 					r.Equal(http.MethodGet, req.Method)
 					r.Equal("/provisioning/v1/versions", req.URL.Path)
 					r.Equal("page_size=1", req.URL.RawQuery)
-					w.WriteHeader(http.StatusOK)
 					w.Header().Set("Content-Type", "application/json")
+					w.WriteHeader(http.StatusOK)
 					json.NewEncoder(w).Encode([]provisioning.Version{})
 				})
 				expectRequest(func(w http.ResponseWriter, req *http.Request) {
@@ -175,36 +180,92 @@ resource "skysql_service" default {
 				expectRequest(func(w http.ResponseWriter, req *http.Request) {
 					r.Equal(http.MethodDelete, req.Method)
 					r.Equal("/provisioning/v1/services/"+serviceID, req.URL.Path)
-					w.Header().Set("Content-Type", "application/json")
 					w.WriteHeader(http.StatusAccepted)
+					w.Header().Set("Content-Type", "application/json")
 				})
 				expectRequest(func(w http.ResponseWriter, req *http.Request) {
 					r.Equal(http.MethodGet, req.Method)
 					r.Equal("/provisioning/v1/services/"+serviceID, req.URL.Path)
 					w.Header().Set("Content-Type", "application/json")
 					w.WriteHeader(http.StatusNotFound)
+					json.NewEncoder(w).Encode(&skysql.ErrorResponse{
+						Code: http.StatusNotFound,
+					})
 				})
 			},
 			checks: []resource.TestCheckFunc{
 				resource.TestCheckResourceAttr("skysql_service.default", "id", serviceID),
 			},
 		},
+		{
+			name: "create service when skysql api returns error",
+			testResource: `
+		resource "skysql_service" default {
+		 service_type   = "transactional"
+		 topology       = "standalone"
+		 cloud_provider = "gcp"
+		 region         = "us-central1"
+		 name           = "vf-test-gcp"
+		 architecture   = "amd64"
+		 nodes          = 1
+		 size           = "sky-2x8"
+		 storage        = 100
+		 ssl_enabled    = true
+		 version        = "10.6.11-6-1"
+		 wait_for_creation = true
+		 wait_for_deletion = true
+		}
+			            `,
+			before: func(r *require.Assertions) {
+				configureOnce.Reset()
+				expectRequest(func(w http.ResponseWriter, req *http.Request) {
+					r.Equal(http.MethodGet, req.Method)
+					r.Equal("/provisioning/v1/versions", req.URL.Path)
+					r.Equal("page_size=1", req.URL.RawQuery)
+					w.Header().Set("Content-Type", "application/json")
+					json.NewEncoder(w).Encode([]provisioning.Version{})
+					w.WriteHeader(http.StatusOK)
+				})
+				expectRequest(func(w http.ResponseWriter, req *http.Request) {
+					r.Equal(http.MethodPost, req.Method)
+					r.Equal("/provisioning/v1/services", req.URL.Path)
+					w.Header().Set("Content-Type", "application/json")
+					w.WriteHeader(http.StatusBadRequest)
+					payload := &skysql.ErrorResponse{
+						Code: http.StatusBadRequest,
+						Errors: []skysql.ErrorDetails{
+							{
+								Message: "boom",
+							},
+						},
+					}
+					json.NewEncoder(w).Encode(payload)
+				})
+			},
+			checks: []resource.TestCheckFunc{
+				resource.TestCheckResourceAttr("skysql_service.default", "id", serviceID),
+			},
+			expectError: regexp.MustCompile(`Error creating service`),
+		},
 	}
 	for _, test := range tests {
 		{
-			r := require.New(t)
-			test.before(r)
-			resource.Test(t, resource.TestCase{
-				IsUnitTest: true,
-				ProtoV6ProviderFactories: map[string]func() (tfprotov6.ProviderServer, error){
-					"skysql": providerserver.NewProtocol6WithError(New("")()),
-				},
-				Steps: []resource.TestStep{
-					{
-						Config: test.testResource,
-						Check:  resource.ComposeAggregateTestCheckFunc(test.checks...),
+			t.Run(test.name, func(t *testing.T) {
+				r := require.New(t)
+				test.before(r)
+				resource.Test(t, resource.TestCase{
+					IsUnitTest: true,
+					ProtoV6ProviderFactories: map[string]func() (tfprotov6.ProviderServer, error){
+						"skysql": providerserver.NewProtocol6WithError(New("")()),
 					},
-				},
+					Steps: []resource.TestStep{
+						{
+							Config:      test.testResource,
+							Check:       resource.ComposeAggregateTestCheckFunc(test.checks...),
+							ExpectError: test.expectError,
+						},
+					},
+				})
 			})
 		}
 	}
