@@ -10,7 +10,6 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/boolplanmodifier"
-	"github.com/hashicorp/terraform-plugin-framework/resource/schema/int64planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
@@ -151,9 +150,6 @@ func (r *ServiceResource) Schema(ctx context.Context, req resource.SchemaRequest
 			"nodes": schema.Int64Attribute{
 				Required:    true,
 				Description: "The number of nodes",
-				PlanModifiers: []planmodifier.Int64{
-					int64planmodifier.RequiresReplace(),
-				},
 			},
 			"architecture": schema.StringAttribute{
 				Optional:    true,
@@ -165,9 +161,6 @@ func (r *ServiceResource) Schema(ctx context.Context, req resource.SchemaRequest
 			"size": schema.StringAttribute{
 				Required:    true,
 				Description: "The size of the service. Valid values are: sky-2x4, sky-2x8 etc",
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.RequiresReplace(),
-				},
 			},
 			"topology": schema.StringAttribute{
 				Required:    true,
@@ -179,16 +172,10 @@ func (r *ServiceResource) Schema(ctx context.Context, req resource.SchemaRequest
 			"storage": schema.Int64Attribute{
 				Required:    true,
 				Description: "The storage size in GB. Valid values are: 100, 200, 300, 400, 500, 600, 700, 800, 900, 1000, 2000, 3000, 4000, 5000, 6000, 7000, 8000, 9000, 10000",
-				PlanModifiers: []planmodifier.Int64{
-					int64planmodifier.RequiresReplace(),
-				},
 			},
 			"volume_iops": schema.Int64Attribute{
 				Optional:    true,
 				Description: "The volume IOPS. This is only applicable for AWS",
-				PlanModifiers: []planmodifier.Int64{
-					int64planmodifier.RequiresReplace(),
-				},
 			},
 			"ssl_enabled": schema.BoolAttribute{
 				Required:    true,
@@ -207,9 +194,6 @@ func (r *ServiceResource) Schema(ctx context.Context, req resource.SchemaRequest
 			"volume_type": schema.StringAttribute{
 				Optional:    true,
 				Description: "The volume type. Valid values are: gp2 and io1. This is only applicable for AWS",
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.RequiresReplace(),
-				},
 			},
 			"wait_for_creation": schema.BoolAttribute{
 				Optional:    true,
@@ -501,25 +485,129 @@ func (r *ServiceResource) Update(ctx context.Context, req resource.UpdateRequest
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	if !plan.IsActive.IsUnknown() && plan.IsActive.ValueBool() != state.IsActive.ValueBool() {
-		tflog.Info(ctx, "Updating service active state", map[string]interface{}{
-			"id":        state.ID.ValueString(),
-			"is_active": plan.IsActive.ValueBool(),
+
+	r.updateServicePowerState(ctx, plan, state, resp)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	r.updateServiceEndpoints(ctx, plan, state, resp)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	r.updateServiceSize(ctx, plan, state, resp)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	r.updateNumberOfNodeForService(ctx, plan, state, resp)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	r.updateServiceStorageSize(ctx, plan, state, resp)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	r.updateServiceStorageIOPS(ctx, plan, state, resp)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+}
+
+func (r *ServiceResource) updateServiceStorageIOPS(ctx context.Context, plan *ServiceResourceModel, state *ServiceResourceModel, resp *resource.UpdateResponse) {
+	if plan.VolumeIOPS.ValueInt64() != state.VolumeIOPS.ValueInt64() || plan.VolumeType.ValueString() != state.VolumeType.ValueString() {
+		tflog.Info(ctx, "Updating service storage IOPS", map[string]interface{}{
+			"id": state.ID.ValueString(),
 		})
-		err = r.client.SetServicePowerState(ctx, state.ID.ValueString(), plan.IsActive.ValueBool())
+		err := r.client.ModifyServiceStorageIOPS(ctx, state.ID.ValueString(), plan.VolumeType.ValueString(), plan.VolumeIOPS.ValueInt64())
 		if err != nil {
-			resp.Diagnostics.AddError("Can not update service", err.Error())
+			resp.Diagnostics.AddError("Can not update service storage IOPS", err.Error())
 			return
 		}
-		state.IsActive = plan.IsActive
-		// Save updated data into Terraform state
+		state.VolumeIOPS = plan.VolumeIOPS
+		state.VolumeType = plan.VolumeType
 		resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
 		if resp.Diagnostics.HasError() {
 			return
 		}
 		r.waitForUpdate(ctx, state, err, resp)
 	}
+}
 
+func (r *ServiceResource) updateServiceStorageSize(ctx context.Context, plan *ServiceResourceModel, state *ServiceResourceModel, resp *resource.UpdateResponse) {
+	if plan.Storage.ValueInt64() != state.Storage.ValueInt64() {
+		tflog.Info(ctx, "Updating storage size for the service", map[string]interface{}{
+			"id":   state.ID.ValueString(),
+			"from": state.Storage.ValueInt64(),
+			"to":   plan.Storage.ValueInt64(),
+		})
+
+		err := r.client.ModifyServiceStorageSize(ctx, state.ID.ValueString(), plan.Storage.ValueInt64())
+		if err != nil {
+			resp.Diagnostics.AddError("Error updating a storage size for the service",
+				fmt.Sprintf("Unable to update a storage size for the service, got error: %s", err))
+			return
+		}
+
+		state.Storage = plan.Storage
+		resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
+		if resp.Diagnostics.HasError() {
+			return
+		}
+		r.waitForUpdate(ctx, state, err, resp)
+	}
+}
+
+func (r *ServiceResource) updateNumberOfNodeForService(ctx context.Context, plan *ServiceResourceModel, state *ServiceResourceModel, resp *resource.UpdateResponse) {
+	if plan.Nodes.ValueInt64() != state.Nodes.ValueInt64() {
+		tflog.Info(ctx, "Updating number of nodes for the service", map[string]interface{}{
+			"id":   state.ID.ValueString(),
+			"from": state.Nodes.ValueInt64(),
+			"to":   plan.Nodes.ValueInt64(),
+		})
+
+		err := r.client.ModifyServiceNodeNumber(ctx, state.ID.ValueString(), plan.Nodes.ValueInt64())
+		if err != nil {
+			resp.Diagnostics.AddError("Error updating a number of nodes for the service", fmt.Sprintf("Unable to update a nodes number for the service, got error: %s", err))
+			return
+		}
+
+		state.Nodes = plan.Nodes
+		resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
+		if resp.Diagnostics.HasError() {
+			return
+		}
+		r.waitForUpdate(ctx, state, err, resp)
+	}
+}
+
+func (r *ServiceResource) updateServiceSize(ctx context.Context, plan *ServiceResourceModel, state *ServiceResourceModel, resp *resource.UpdateResponse) {
+	if plan.Size.ValueString() != state.Size.ValueString() {
+		tflog.Info(ctx, "Updating service size", map[string]interface{}{
+			"id":   state.ID.ValueString(),
+			"from": state.Size.ValueString(),
+			"to":   plan.Size.ValueString(),
+		})
+
+		err := r.client.ModifyServiceSize(ctx, state.ID.ValueString(), plan.Size.ValueString())
+		if err != nil {
+			resp.Diagnostics.AddError("Error updating service size", fmt.Sprintf("Unable to update service size, got error: %s", err))
+			return
+		}
+
+		state.Size = plan.Size
+		resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
+		if resp.Diagnostics.HasError() {
+			return
+		}
+		r.waitForUpdate(ctx, state, err, resp)
+	}
+}
+
+func (r *ServiceResource) updateServiceEndpoints(ctx context.Context, plan *ServiceResourceModel, state *ServiceResourceModel, resp *resource.UpdateResponse) {
 	var planAllowedAccounts []string
 	diag := plan.AllowedAccounts.ElementsAs(ctx, &planAllowedAccounts, false)
 	if diag.HasError() {
@@ -566,6 +654,28 @@ func (r *ServiceResource) Update(ctx context.Context, req resource.UpdateRequest
 		r.waitForUpdate(ctx, state, err, resp)
 		return
 	}
+}
+
+func (r *ServiceResource) updateServicePowerState(ctx context.Context, plan *ServiceResourceModel, state *ServiceResourceModel, resp *resource.UpdateResponse) {
+	if !plan.IsActive.IsUnknown() && plan.IsActive.ValueBool() != state.IsActive.ValueBool() {
+		tflog.Info(ctx, "Updating service active state", map[string]interface{}{
+			"id":        state.ID.ValueString(),
+			"is_active": plan.IsActive.ValueBool(),
+		})
+		err := r.client.SetServicePowerState(ctx, state.ID.ValueString(), plan.IsActive.ValueBool())
+		if err != nil {
+			resp.Diagnostics.AddError("Can not update service", err.Error())
+			return
+		}
+		state.IsActive = plan.IsActive
+		// Save updated data into Terraform state
+		resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
+		if resp.Diagnostics.HasError() {
+			return
+		}
+		r.waitForUpdate(ctx, state, err, resp)
+	}
+	return
 }
 
 var serviceUpdateWaitStates = []string{"ready", "failed", "stopped"}
@@ -698,5 +808,6 @@ func (r *ServiceResource) ModifyPlan(ctx context.Context, req resource.ModifyPla
 			return
 		}
 	}
+
 	resp.Diagnostics.Append(req.Plan.Set(ctx, &config)...)
 }

@@ -1,5 +1,5 @@
 package provisioning
 
-type PowerState struct {
+type PowerStateRequest struct {
 	IsActive bool `json:"is_active"`
 }

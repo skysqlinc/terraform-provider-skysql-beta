@@ -194,7 +194,7 @@ func (c *Client) SetServicePowerState(ctx context.Context, serviceID string, isA
 	resp, err := c.HTTPClient.R().
 		SetHeader("Accept", "application/json").
 		SetContext(ctx).
-		SetBody(&provisioning.PowerState{IsActive: isActive}).
+		SetBody(&provisioning.PowerStateRequest{IsActive: isActive}).
 		SetError(&ErrorResponse{}).
 		Post("/provisioning/v1/services/" + serviceID + "/power")
 	if err != nil {
@@ -236,4 +236,75 @@ func (c *Client) ModifyServiceEndpoints(
 		response = make(provisioning.PatchServiceEndpointsResponse, 0)
 	}
 	return &response[0], err
+}
+
+func (c *Client) ModifyServiceSize(ctx context.Context, serviceID string, size string) error {
+	resp, err := c.HTTPClient.R().
+		SetHeader("Accept", "application/json").
+		SetContext(ctx).
+		SetBody(&provisioning.UpdateServiceSizeRequest{Size: size}).
+		SetError(&ErrorResponse{}).
+		Post("/provisioning/v1/services/" + serviceID + "/size")
+	if err != nil {
+		return err
+	}
+	if resp.IsError() {
+		return handleError(resp)
+	}
+
+	return err
+}
+
+func (c *Client) ModifyServiceNodeNumber(ctx context.Context, serviceID string, nodes int64) error {
+	resp, err := c.HTTPClient.R().
+		SetHeader("Accept", "application/json").
+		SetContext(ctx).
+		SetBody(&provisioning.UpdateServiceNodesNumberRequest{Nodes: nodes}).
+		SetError(&ErrorResponse{}).
+		Post("/provisioning/v1/services/" + serviceID + "/nodes")
+	if err != nil {
+		return err
+	}
+	if resp.IsError() {
+		return handleError(resp)
+	}
+
+	return err
+}
+
+func (c *Client) ModifyServiceStorageSize(ctx context.Context, serviceID string, size int64) error {
+	resp, err := c.HTTPClient.R().
+		SetHeader("Accept", "application/json").
+		SetContext(ctx).
+		SetBody(&provisioning.UpdateStorageSizeRequest{Size: size}).
+		SetError(&ErrorResponse{}).
+		Patch("/provisioning/v1/services/" + serviceID + "/storage/size")
+	if err != nil {
+		return err
+	}
+	if resp.IsError() {
+		return handleError(resp)
+	}
+
+	return err
+}
+
+func (c *Client) ModifyServiceStorageIOPS(ctx context.Context, serviceID string, volumeType string, IOPS int64) error {
+	resp, err := c.HTTPClient.R().
+		SetHeader("Accept", "application/json").
+		SetContext(ctx).
+		SetBody(&provisioning.UpdateStorageIOPSRequest{
+			IOPS:       IOPS,
+			VolumeType: volumeType,
+		}).
+		SetError(&ErrorResponse{}).
+		Patch("/provisioning/v1/services/" + serviceID + "/storage/iops")
+	if err != nil {
+		return err
+	}
+	if resp.IsError() {
+		return handleError(resp)
+	}
+
+	return err
 }

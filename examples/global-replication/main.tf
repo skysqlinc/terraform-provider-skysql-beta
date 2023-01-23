@@ -15,7 +15,7 @@ data "skysql_versions" "default" {}
 # Filter the list of versions to only include  versions for the standalone topology
 locals {
   sky_versions_filtered = [
-    for item in data.skysql_versions.default.versions : item if item.topology == "standalone"
+    for item in data.skysql_versions.default.versions : item if item.topology == "xpand-direct"
   ]
 }
 
