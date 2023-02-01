@@ -306,6 +306,15 @@ output "skysql_cmd" {
 }
 ```
 
+
+Run `terraform plan` to see the changes that will be made.
+
+If you agree with the changes, run `terraform apply` to create the service.
+
+## Destroy the SkySQL service
+
+Run `terraform destroy` to destroy the service.
+
 ## Limitations
 
 * The terraform resource `skysql_service` doesn't support updates. If you need to change the configuration of a service, you need to destroy the service and create a new one.
