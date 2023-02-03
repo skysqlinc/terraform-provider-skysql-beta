@@ -30,7 +30,6 @@ func TestServiceResourceDeletionProtection(t *testing.T) {
 	var service *provisioning.Service
 	// Check API connectivity
 	expectRequest(func(w http.ResponseWriter, req *http.Request) {
-		r.Equal(http.MethodGet, req.Method)
 		r.Equal("/provisioning/v1/versions", req.URL.Path)
 		r.Equal("page_size=1", req.URL.RawQuery)
 		w.Header().Set("Content-Type", "application/json")

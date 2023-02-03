@@ -33,12 +33,13 @@ type Service struct {
 }
 
 type Endpoint struct {
-	Name            string   `json:"name"`
-	Ports           []Port   `json:"ports"`
-	Mechanism       string   `json:"mechanism,omitempty"`
-	AllowedAccounts []string `json:"allowed_accounts,omitempty"`
-	EndpointService string   `json:"endpoint_service,omitempty"`
-	Visibility      string   `json:"visibility"`
+	Name            string          `json:"name"`
+	Ports           []Port          `json:"ports"`
+	Mechanism       string          `json:"mechanism,omitempty"`
+	AllowedAccounts []string        `json:"allowed_accounts,omitempty"`
+	EndpointService string          `json:"endpoint_service,omitempty"`
+	Visibility      string          `json:"visibility"`
+	AllowList       []AllowListItem `json:"allow_list,omitempty"`
 }
 
 type Port struct {

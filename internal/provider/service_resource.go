@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"github.com/hashicorp/terraform-plugin-framework-timeouts/resource/timeouts"
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
+	"github.com/hashicorp/terraform-plugin-framework/attr"
+	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
@@ -34,6 +36,13 @@ var _ resource.Resource = &ServiceResource{}
 var _ resource.ResourceWithImportState = &ServiceResource{}
 var _ resource.ResourceWithConfigure = &ServiceResource{}
 var _ resource.ResourceWithModifyPlan = &ServiceResource{}
+
+var allowListElementType = types.ObjectType{
+	AttrTypes: map[string]attr.Type{
+		"ip":      types.StringType,
+		"comment": types.StringType,
+	},
+}
 
 func NewServiceResource() resource.Resource {
 	return &ServiceResource{}
@@ -72,6 +81,7 @@ type ServiceResourceModel struct {
 	IsActive           types.Bool     `tfsdk:"is_active"`
 	WaitForUpdate      types.Bool     `tfsdk:"wait_for_update"`
 	DeletionProtection types.Bool     `tfsdk:"deletion_protection"`
+	AllowList          types.List     `tfsdk:"allow_list"`
 }
 
 // ServiceResourceNamedPortModel is an endpoint port
@@ -250,6 +260,27 @@ func (r *ServiceResource) Schema(ctx context.Context, req resource.SchemaRequest
 					boolplanmodifier.UseStateForUnknown(),
 				},
 			},
+			"allow_list": schema.ListNestedAttribute{
+				Required:    false,
+				Computed:    true,
+				Optional:    true,
+				Description: "The list of IP addresses with comments to allow access to the service",
+				NestedObject: schema.NestedAttributeObject{
+					Attributes: map[string]schema.Attribute{
+						"ip": schema.StringAttribute{
+							Required:    true,
+							Description: "The IP address to allow access to the service. The IP must be in a valid CIDR format",
+							Validators: []validator.String{
+								allowListIPValidator{},
+							},
+						},
+						"comment": schema.StringAttribute{
+							Optional:    true,
+							Description: "A comment to describe the IP address",
+						},
+					},
+				},
+			},
 		},
 		Blocks: map[string]schema.Block{
 			"timeouts": timeouts.Block(ctx, timeouts.Opts{
@@ -312,8 +343,25 @@ func (r *ServiceResource) Create(ctx context.Context, req resource.CreateRequest
 		PrimaryHost:        data.PrimaryHost.ValueString(),
 	}
 
-	diag := data.AllowedAccounts.ElementsAs(ctx, &createServiceRequest.AllowedAccounts, false)
-	if diag.HasError() {
+	if !data.AllowList.IsUnknown() {
+		var allowList []AllowListModel
+		diags := data.AllowList.ElementsAs(ctx, &allowList, false)
+		if diags.HasError() {
+			resp.Diagnostics.Append(diags...)
+			return
+		}
+
+		for _, allowListItem := range allowList {
+			createServiceRequest.AllowList = append(createServiceRequest.AllowList, provisioning.AllowListItem{
+				IPAddress: allowListItem.IPAddress.ValueString(),
+				Comment:   allowListItem.Comment.ValueString(),
+			})
+		}
+	}
+
+	diags := data.AllowedAccounts.ElementsAs(ctx, &createServiceRequest.AllowedAccounts, false)
+	if diags.HasError() {
+		resp.Diagnostics.Append(diags...)
 		return
 	}
 
@@ -340,6 +388,15 @@ func (r *ServiceResource) Create(ctx context.Context, req resource.CreateRequest
 	}
 
 	data.IsActive = types.BoolValue(service.IsActive)
+
+	if len(service.Endpoints) > 0 {
+		var cdiags diag.Diagnostics
+		data.AllowList, cdiags = r.allowListToListType(ctx, service.Endpoints[0].AllowList)
+		if cdiags.HasError() {
+			resp.Diagnostics.Append(cdiags...)
+			return
+		}
+	}
 
 	// Save data into Terraform state
 	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
@@ -379,6 +436,23 @@ func (r *ServiceResource) Create(ctx context.Context, req resource.CreateRequest
 	}
 }
 
+func (r *ServiceResource) allowListToListType(ctx context.Context, allowList []provisioning.AllowListItem) (types.List, diag.Diagnostics) {
+
+	allowListModels := make([]AllowListModel, 0, len(allowList))
+	for _, allowListItem := range allowList {
+		allowListModels = append(allowListModels, AllowListModel{
+			IPAddress: types.StringValue(allowListItem.IPAddress),
+			Comment:   types.StringValue(allowListItem.Comment),
+		})
+	}
+
+	list, diags := types.ListValueFrom(ctx, allowListElementType, allowListModels)
+	if diags.HasError() {
+		return types.ListNull(allowListElementType), diags
+	}
+	return list, diags
+}
+
 func (r *ServiceResource) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
 	var data *ServiceResourceModel
 
@@ -389,17 +463,9 @@ func (r *ServiceResource) Read(ctx context.Context, req resource.ReadRequest, re
 		return
 	}
 
-	err := r.readServiceState(ctx, data)
-	if err != nil {
-		if errors.Is(err, skysql.ErrorServiceNotFound) {
-			tflog.Warn(ctx, "SkySQL service not found, removing from state", map[string]interface{}{
-				"id": data.ID.ValueString(),
-			})
-			resp.State.RemoveResource(ctx)
-
-			return
-		}
-		resp.Diagnostics.AddError("Can not read service", err.Error())
+	diags := r.readServiceState(ctx, data)
+	if diags.HasError() {
+		resp.State.RemoveResource(ctx)
 		return
 	}
 	// Save updated data into Terraform state
@@ -409,12 +475,16 @@ func (r *ServiceResource) Read(ctx context.Context, req resource.ReadRequest, re
 	}
 }
 
-func (r *ServiceResource) readServiceState(ctx context.Context, data *ServiceResourceModel) error {
+func (r *ServiceResource) readServiceState(ctx context.Context, data *ServiceResourceModel) diag.Diagnostics {
+	var diags diag.Diagnostics
 	service, err := r.client.GetServiceByID(ctx, data.ID.ValueString())
 	if err != nil {
-		return err
+		diags.AddError("Can not read SkySQLservice", err.Error())
+		return diags
 	}
 	data.ID = types.StringValue(service.ID)
+	data.Name = types.StringValue(service.Name)
+	data.SSLEnabled = types.BoolValue(service.SslEnabled)
 	data.ServiceType = types.StringValue(service.ServiceType)
 	data.Provider = types.StringValue(service.Provider)
 	data.Region = types.StringValue(service.Region)
@@ -439,7 +509,14 @@ func (r *ServiceResource) readServiceState(ctx context.Context, data *ServiceRes
 		data.PrimaryHost = types.StringValue(service.PrimaryHost)
 	}
 	data.IsActive = types.BoolValue(service.IsActive)
-
+	if len(service.Endpoints) > 0 {
+		var cdiags diag.Diagnostics
+		data.AllowList, cdiags = r.allowListToListType(ctx, service.Endpoints[0].AllowList)
+		if cdiags.HasError() {
+			diags.Append(cdiags...)
+			return diags
+		}
+	}
 	return nil
 }
 
@@ -461,17 +538,9 @@ func (r *ServiceResource) Update(ctx context.Context, req resource.UpdateRequest
 		return
 	}
 
-	err := r.readServiceState(ctx, state)
-	if err != nil {
-		if errors.Is(err, skysql.ErrorServiceNotFound) {
-			tflog.Warn(ctx, "SkySQL service not found, removing from state", map[string]interface{}{
-				"id": state.ID.ValueString(),
-			})
-			resp.State.RemoveResource(ctx)
-
-			return
-		}
-		resp.Diagnostics.AddError("Can not read service", err.Error())
+	diags := r.readServiceState(ctx, state)
+	if diags.HasError() {
+		resp.State.RemoveResource(ctx)
 		return
 	}
 

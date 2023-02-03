@@ -51,6 +51,7 @@ resource "skysql_service" "default" {
 
 ### Optional
 
+- `allow_list` (Attributes List) The list of IP addresses with comments to allow access to the service (see [below for nested schema](#nestedatt--allow_list))
 - `architecture` (String) The architecture of the service. Valid values are: amd64 or arm64
 - `deletion_protection` (Boolean) Whether to enable deletion protection. Valid values are: true or false. Default is true
 - `endpoint_allowed_accounts` (List of String) The list of cloud accounts (aws account ids or gcp projects) that are allowed to access the service
@@ -70,6 +71,18 @@ resource "skysql_service" "default" {
 ### Read-Only
 
 - `id` (String) The ID of the service
+
+<a id="nestedatt--allow_list"></a>
+### Nested Schema for `allow_list`
+
+Required:
+
+- `ip` (String) The IP address to allow access to the service. The IP must be in a valid CIDR format
+
+Optional:
+
+- `comment` (String) A comment to describe the IP address
+
 
 <a id="nestedblock--timeouts"></a>
 ### Nested Schema for `timeouts`
