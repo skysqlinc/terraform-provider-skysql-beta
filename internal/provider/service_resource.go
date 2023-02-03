@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"github.com/hashicorp/terraform-plugin-framework-timeouts/resource/timeouts"
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
+	"github.com/hashicorp/terraform-plugin-framework/attr"
+	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
@@ -35,6 +37,13 @@ var _ resource.ResourceWithImportState = &ServiceResource{}
 var _ resource.ResourceWithConfigure = &ServiceResource{}
 var _ resource.ResourceWithModifyPlan = &ServiceResource{}
 var _ resource.ResourceWithValidateConfig = &ServiceResource{}
+
+var allowListElementType = types.ObjectType{
+	AttrTypes: map[string]attr.Type{
+		"ip":      types.StringType,
+		"comment": types.StringType,
+	},
+}
 
 func NewServiceResource() resource.Resource {
 	return &ServiceResource{}
@@ -73,6 +82,7 @@ type ServiceResourceModel struct {
 	IsActive           types.Bool     `tfsdk:"is_active"`
 	WaitForUpdate      types.Bool     `tfsdk:"wait_for_update"`
 	DeletionProtection types.Bool     `tfsdk:"deletion_protection"`
+	AllowList          types.List     `tfsdk:"allow_list"`
 }
 
 // ServiceResourceNamedPortModel is an endpoint port
@@ -145,6 +155,9 @@ func (r *ServiceResource) Schema(ctx context.Context, req resource.SchemaRequest
 				Optional:    true,
 				Computed:    true,
 				Description: "The software version",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.RequiresReplace(),
+				},
 			},
 			"nodes": schema.Int64Attribute{
 				Optional:    true,
@@ -155,6 +168,9 @@ func (r *ServiceResource) Schema(ctx context.Context, req resource.SchemaRequest
 				Optional:    true,
 				Computed:    true,
 				Description: "The architecture of the service. Valid values are: amd64 or arm64",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.RequiresReplace(),
+				},
 			},
 			"size": schema.StringAttribute{
 				Optional:    true,
@@ -252,6 +268,27 @@ func (r *ServiceResource) Schema(ctx context.Context, req resource.SchemaRequest
 					boolplanmodifier.UseStateForUnknown(),
 				},
 			},
+			"allow_list": schema.ListNestedAttribute{
+				Required:    false,
+				Computed:    true,
+				Optional:    true,
+				Description: "The list of IP addresses with comments to allow access to the service",
+				NestedObject: schema.NestedAttributeObject{
+					Attributes: map[string]schema.Attribute{
+						"ip": schema.StringAttribute{
+							Required:    true,
+							Description: "The IP address to allow access to the service. The IP must be in a valid CIDR format",
+							Validators: []validator.String{
+								allowListIPValidator{},
+							},
+						},
+						"comment": schema.StringAttribute{
+							Optional:    true,
+							Description: "A comment to describe the IP address",
+						},
+					},
+				},
+			},
 		},
 		Blocks: map[string]schema.Block{
 			"timeouts": timeouts.Block(ctx, timeouts.Opts{
@@ -314,8 +351,25 @@ func (r *ServiceResource) Create(ctx context.Context, req resource.CreateRequest
 		PrimaryHost:        data.PrimaryHost.ValueString(),
 	}
 
-	diag := data.AllowedAccounts.ElementsAs(ctx, &createServiceRequest.AllowedAccounts, false)
-	if diag.HasError() {
+	if !data.AllowList.IsUnknown() {
+		var allowList []AllowListModel
+		diags := data.AllowList.ElementsAs(ctx, &allowList, false)
+		if diags.HasError() {
+			resp.Diagnostics.Append(diags...)
+			return
+		}
+
+		for _, allowListItem := range allowList {
+			createServiceRequest.AllowList = append(createServiceRequest.AllowList, provisioning.AllowListItem{
+				IPAddress: allowListItem.IPAddress.ValueString(),
+				Comment:   allowListItem.Comment.ValueString(),
+			})
+		}
+	}
+
+	diags := data.AllowedAccounts.ElementsAs(ctx, &createServiceRequest.AllowedAccounts, false)
+	if diags.HasError() {
+		resp.Diagnostics.Append(diags...)
 		return
 	}
 
@@ -353,6 +407,16 @@ func (r *ServiceResource) Create(ctx context.Context, req resource.CreateRequest
 		data.Mechanism = types.StringValue(service.Endpoints[0].Mechanism)
 		data.AllowedAccounts, _ = types.ListValueFrom(ctx, types.StringType, service.Endpoints[0].AllowedAccounts)
 	}
+
+	if len(service.Endpoints) > 0 {
+		var cdiags diag.Diagnostics
+		data.AllowList, cdiags = r.allowListToListType(ctx, service.Endpoints[0].AllowList)
+		if cdiags.HasError() {
+			resp.Diagnostics.Append(cdiags...)
+			return
+		}
+	}
+
 	// Save data into Terraform state
 	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
 	if resp.Diagnostics.HasError() {
@@ -391,6 +455,23 @@ func (r *ServiceResource) Create(ctx context.Context, req resource.CreateRequest
 	}
 }
 
+func (r *ServiceResource) allowListToListType(ctx context.Context, allowList []provisioning.AllowListItem) (types.List, diag.Diagnostics) {
+
+	allowListModels := make([]AllowListModel, 0, len(allowList))
+	for _, allowListItem := range allowList {
+		allowListModels = append(allowListModels, AllowListModel{
+			IPAddress: types.StringValue(allowListItem.IPAddress),
+			Comment:   types.StringValue(allowListItem.Comment),
+		})
+	}
+
+	list, diags := types.ListValueFrom(ctx, allowListElementType, allowListModels)
+	if diags.HasError() {
+		return types.ListNull(allowListElementType), diags
+	}
+	return list, diags
+}
+
 func (r *ServiceResource) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
 	var data *ServiceResourceModel
 
@@ -426,7 +507,9 @@ func (r *ServiceResource) readServiceState(ctx context.Context, data *ServiceRes
 	if err != nil {
 		return err
 	}
+	data.ID = types.StringValue(service.ID)
 	data.Name = types.StringValue(service.Name)
+	data.SSLEnabled = types.BoolValue(service.SSLEnabled)
 	data.ServiceType = types.StringValue(service.ServiceType)
 	data.Provider = types.StringValue(service.Provider)
 	data.Region = types.StringValue(service.Region)
@@ -455,7 +538,9 @@ func (r *ServiceResource) readServiceState(ctx context.Context, data *ServiceRes
 	if len(service.Endpoints) > 0 {
 		data.Mechanism = types.StringValue(service.Endpoints[0].Mechanism)
 		data.AllowedAccounts, _ = types.ListValueFrom(ctx, types.StringType, service.Endpoints[0].AllowedAccounts)
+		data.AllowList, _ = r.allowListToListType(ctx, service.Endpoints[0].AllowList)
 	}
+
 	return nil
 }
 
