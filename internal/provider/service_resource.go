@@ -584,6 +584,11 @@ func (r *ServiceResource) Update(ctx context.Context, req resource.UpdateRequest
 	if resp.Diagnostics.HasError() {
 		return
 	}
+
+	r.updateAllowList(ctx, plan, state, resp)
+	if resp.Diagnostics.HasError() {
+		return
+	}
 }
 
 func (r *ServiceResource) updateServiceStorageIOPS(ctx context.Context, plan *ServiceResourceModel, state *ServiceResourceModel, resp *resource.UpdateResponse) {
@@ -722,6 +727,67 @@ func (r *ServiceResource) updateServiceEndpoints(ctx context.Context, plan *Serv
 		}
 		r.waitForUpdate(ctx, state, err, resp)
 		return
+	}
+}
+
+func (r *ServiceResource) updateAllowList(ctx context.Context, plan *ServiceResourceModel, state *ServiceResourceModel, resp *resource.UpdateResponse) {
+	if !plan.AllowList.IsUnknown() {
+		var planAllowList []AllowListModel
+		diags := plan.AllowList.ElementsAs(ctx, &planAllowList, false)
+		if diags.HasError() {
+			return
+		}
+
+		var stateAllowList []AllowListModel
+		diags = state.AllowList.ElementsAs(ctx, &stateAllowList, false)
+		if diags.HasError() {
+			return
+		}
+
+		if !reflect.DeepEqual(planAllowList, stateAllowList) {
+			tflog.Info(ctx, "Updating service allow list", map[string]interface{}{
+				"id": state.ID.ValueString(),
+			})
+
+			allowListUpdateRequest := make([]provisioning.AllowListItem, 0)
+			for i := range planAllowList {
+				allowListUpdateRequest = append(allowListUpdateRequest, provisioning.AllowListItem{
+					IPAddress: planAllowList[i].IPAddress.ValueString(),
+					Comment:   planAllowList[i].Comment.ValueString(),
+				})
+			}
+
+			allowListResp, err := r.client.UpdateServiceAllowListByID(ctx, plan.ID.ValueString(), allowListUpdateRequest)
+			if err != nil {
+				if errors.Is(err, skysql.ErrorServiceNotFound) {
+					tflog.Warn(ctx, "SkySQL service not found, removing from state", map[string]interface{}{
+						"id": state.ID.ValueString(),
+					})
+					resp.State.RemoveResource(ctx)
+
+					return
+				}
+				resp.Diagnostics.AddError("Error updating service allow list", err.Error())
+				return
+			}
+
+			var cdiags diag.Diagnostics
+			state.AllowList, cdiags = r.allowListToListType(ctx, allowListResp)
+			if cdiags.HasError() {
+				resp.Diagnostics.Append(cdiags...)
+				return
+			}
+
+			state.AllowList = plan.AllowList
+
+			// Save updated data into Terraform state
+			resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
+			if resp.Diagnostics.HasError() {
+				return
+			}
+			r.waitForUpdate(ctx, state, err, resp)
+			return
+		}
 	}
 }
 
