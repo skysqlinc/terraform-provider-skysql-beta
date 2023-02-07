@@ -8,7 +8,7 @@ type ErrorResponse struct {
 	Exception string         `json:"exception"`
 	Path      string         `json:"path"`
 	Code      int            `json:"code"`
-	Timestamp int64          `json:"timestamp"`
+	Timestamp FlexInt        `json:"timestamp"`
 	TraceID   string         `json:"trace_id"`
 }
 

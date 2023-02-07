@@ -34,6 +34,7 @@ var _ resource.Resource = &ServiceResource{}
 var _ resource.ResourceWithImportState = &ServiceResource{}
 var _ resource.ResourceWithConfigure = &ServiceResource{}
 var _ resource.ResourceWithModifyPlan = &ServiceResource{}
+var _ resource.ResourceWithValidateConfig = &ServiceResource{}
 
 func NewServiceResource() resource.Resource {
 	return &ServiceResource{}
@@ -141,25 +142,23 @@ func (r *ServiceResource) Schema(ctx context.Context, req resource.SchemaRequest
 				},
 			},
 			"version": schema.StringAttribute{
-				Required:    true,
-				Description: "The server version",
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.RequiresReplace(),
-				},
+				Optional:    true,
+				Computed:    true,
+				Description: "The software version",
 			},
 			"nodes": schema.Int64Attribute{
-				Required:    true,
+				Optional:    true,
+				Computed:    true,
 				Description: "The number of nodes",
 			},
 			"architecture": schema.StringAttribute{
 				Optional:    true,
+				Computed:    true,
 				Description: "The architecture of the service. Valid values are: amd64 or arm64",
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.RequiresReplace(),
-				},
 			},
 			"size": schema.StringAttribute{
-				Required:    true,
+				Optional:    true,
+				Computed:    true,
 				Description: "The size of the service. Valid values are: sky-2x4, sky-2x8 etc",
 			},
 			"topology": schema.StringAttribute{
@@ -170,7 +169,8 @@ func (r *ServiceResource) Schema(ctx context.Context, req resource.SchemaRequest
 				},
 			},
 			"storage": schema.Int64Attribute{
-				Required:    true,
+				Optional:    true,
+				Computed:    true,
 				Description: "The storage size in GB. Valid values are: 100, 200, 300, 400, 500, 600, 700, 800, 900, 1000, 2000, 3000, 4000, 5000, 6000, 7000, 8000, 9000, 10000",
 			},
 			"volume_iops": schema.Int64Attribute{
@@ -178,7 +178,7 @@ func (r *ServiceResource) Schema(ctx context.Context, req resource.SchemaRequest
 				Description: "The volume IOPS. This is only applicable for AWS",
 			},
 			"ssl_enabled": schema.BoolAttribute{
-				Required:    true,
+				Optional:    true,
 				Description: "Whether to enable SSL. Valid values are: true or false",
 				PlanModifiers: []planmodifier.Bool{
 					boolplanmodifier.RequiresReplace(),
@@ -340,6 +340,11 @@ func (r *ServiceResource) Create(ctx context.Context, req resource.CreateRequest
 	}
 
 	data.IsActive = types.BoolValue(service.IsActive)
+	data.Architecture = types.StringValue(service.Architecture)
+	data.Nodes = types.Int64Value(int64(service.Nodes))
+	data.Size = types.StringValue(service.Size)
+	data.Version = types.StringValue(service.Version)
+	data.Storage = types.Int64Value(int64(service.StorageVolume.Size))
 
 	// Save data into Terraform state
 	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
@@ -768,6 +773,9 @@ func (r *ServiceResource) ModifyPlan(ctx context.Context, req resource.ModifyPla
 	if req.Plan.Raw.IsNull() {
 		return
 	}
+}
+
+func (r *ServiceResource) ValidateConfig(ctx context.Context, req resource.ValidateConfigRequest, resp *resource.ValidateConfigResponse) {
 
 	var config *ServiceResourceModel
 
@@ -809,5 +817,65 @@ func (r *ServiceResource) ModifyPlan(ctx context.Context, req resource.ModifyPla
 		}
 	}
 
-	resp.Diagnostics.Append(req.Plan.Set(ctx, &config)...)
+	if !Contains[string]([]string{"lakehouse", "sa"}, config.Topology.ValueString()) {
+		if config.SSLEnabled.IsNull() {
+			resp.Diagnostics.AddAttributeError(path.Root("ssl_enabled"),
+				"Missing required argument",
+				fmt.Sprintf("The argument %q is required, but no definition was found.", "ssl_enabled"))
+			return
+		}
+		if config.Storage.IsNull() {
+			resp.Diagnostics.AddAttributeError(path.Root("storage"),
+				"Missing required argument",
+				fmt.Sprintf("The argument %q is required, but no definition was found.", "storage"))
+			return
+		}
+		if config.Size.IsNull() {
+			resp.Diagnostics.AddAttributeError(path.Root("size"),
+				"Missing required argument",
+				fmt.Sprintf("The argument %q is required, but no definition was found.", "size"))
+			return
+		}
+		if config.Nodes.IsNull() {
+			resp.Diagnostics.AddAttributeError(path.Root("size"),
+				"Missing required argument",
+				fmt.Sprintf("The argument %q is required, but no definition was found.", "size"))
+			return
+		}
+		if config.Version.IsNull() {
+			resp.Diagnostics.AddAttributeError(path.Root("version"),
+				"Missing required argument",
+				fmt.Sprintf("The argument %q is required, but no definition was found.", "version"))
+			return
+		}
+	} else {
+		if !config.Architecture.IsUnknown() && !config.Architecture.IsNull() {
+			resp.Diagnostics.AddAttributeError(path.Root("architecture"),
+				"Attempt to modify read-only attribute",
+				fmt.Sprintf("The argument %q is read only for the %q topology", "architecture", config.Topology.ValueString()))
+		}
+		if !config.Nodes.IsUnknown() && !config.Nodes.IsNull() {
+			resp.Diagnostics.AddAttributeError(path.Root("nodes"),
+				"Attempt to modify read-only attribute",
+				fmt.Sprintf("The argument %q is read only for the %q topology", "nodes", config.Topology.ValueString()))
+		}
+
+		if !config.Size.IsUnknown() && !config.Size.IsNull() {
+			resp.Diagnostics.AddAttributeError(path.Root("size"),
+				"Attempt to modify read-only attribute",
+				fmt.Sprintf("The argument %q is read only for the %q topology", "size", config.Topology.ValueString()))
+		}
+
+		if !config.SSLEnabled.IsUnknown() && !config.SSLEnabled.IsNull() {
+			resp.Diagnostics.AddAttributeError(path.Root("ssl_enabled"),
+				"Attempt to modify read-only attribute",
+				fmt.Sprintf("The argument %q is read only for the %q topology", "ssl_enabled", config.Topology.ValueString()))
+		}
+
+		if !config.Version.IsUnknown() && !config.Version.IsNull() {
+			resp.Diagnostics.AddAttributeError(path.Root("version"),
+				"Attempt to modify read-only attribute",
+				fmt.Sprintf("The argument %q is read only for the %q topology", "version", config.Topology.ValueString()))
+		}
+	}
 }
