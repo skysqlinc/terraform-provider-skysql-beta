@@ -11,7 +11,7 @@ type Service struct {
 	Architecture  string     `json:"architecture"`
 	Size          string     `json:"size"`
 	Nodes         int        `json:"nodes"`
-	SslEnabled    bool       `json:"ssl_enabled"`
+	SSLEnabled    bool       `json:"ssl_enabled"`
 	NosqlEnabled  bool       `json:"nosql_enabled"`
 	FQDN          string     `json:"fqdn"`
 	Status        string     `json:"status"`

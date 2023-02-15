@@ -62,6 +62,8 @@ func mockSkySQLAPI(t *testing.T) (string, func(http.HandlerFunc), func()) {
 func TestServiceResource(t *testing.T) {
 	const serviceID = "dbdgf42002418"
 
+	const serviceName = "vf-test-gcp"
+
 	testUrl, expectRequest, close := mockSkySQLAPI(t)
 	defer close()
 	os.Setenv("TF_SKYSQL_API_ACCESS_TOKEN", "[token]")
@@ -122,7 +124,7 @@ resource "skysql_service" default {
 						Architecture: payload.Architecture,
 						Size:         payload.Size,
 						Nodes:        int(payload.Nodes),
-						SslEnabled:   payload.SSLEnabled,
+						SSLEnabled:   payload.SSLEnabled,
 						NosqlEnabled: payload.NoSQLEnabled,
 						FQDN:         "",
 						Status:       "pending_create",
@@ -152,7 +154,7 @@ resource "skysql_service" default {
 							IOPS:       int(payload.VolumeIOPS),
 						},
 						OutboundIps:        nil,
-						IsActive:           false,
+						IsActive:           true,
 						ServiceType:        payload.ServiceType,
 						ReplicationEnabled: false,
 						PrimaryHost:        "",
@@ -164,18 +166,15 @@ resource "skysql_service" default {
 					r.Equal(http.MethodGet, req.Method)
 					r.Equal("/provisioning/v1/services/"+serviceID, req.URL.Path)
 					w.Header().Set("Content-Type", "application/json")
-					json.NewEncoder(w).Encode(&provisioning.Service{
-						ID:     serviceID,
-						Status: "ready",
-					})
+					service.Status = "ready"
+					json.NewEncoder(w).Encode(service)
 					w.WriteHeader(http.StatusOK)
 				})
 				expectRequest(func(w http.ResponseWriter, req *http.Request) {
 					r.Equal(http.MethodGet, req.Method)
 					r.Equal("/provisioning/v1/services/"+serviceID, req.URL.Path)
 					w.Header().Set("Content-Type", "application/json")
-					service.Status = "ready"
-					json.NewEncoder(w).Encode(&service)
+					json.NewEncoder(w).Encode(service)
 					w.WriteHeader(http.StatusOK)
 				})
 				expectRequest(func(w http.ResponseWriter, req *http.Request) {
@@ -242,6 +241,48 @@ resource "skysql_service" default {
 						},
 					}
 					json.NewEncoder(w).Encode(payload)
+				})
+			},
+			checks: []resource.TestCheckFunc{
+				resource.TestCheckResourceAttr("skysql_service.default", "id", serviceID),
+			},
+			expectError: regexp.MustCompile(`Error creating service`),
+		},
+		{
+			name: "create service when skysql api returns unexpected error",
+			testResource: `
+		resource "skysql_service" default {
+		 service_type   = "transactional"
+		 topology       = "standalone"
+		 cloud_provider = "gcp"
+		 region         = "us-central1"
+		 name           = "vf-test-gcp"
+		 architecture   = "amd64"
+		 nodes          = 1
+		 size           = "sky-2x8"
+		 storage        = 100
+		 ssl_enabled    = true
+		 version        = "10.6.11-6-1"
+		 wait_for_creation = true
+		 wait_for_deletion = true
+		 deletion_protection = false
+		}
+			            `,
+			before: func(r *require.Assertions) {
+				configureOnce.Reset()
+				expectRequest(func(w http.ResponseWriter, req *http.Request) {
+					r.Equal(http.MethodGet, req.Method)
+					r.Equal("/provisioning/v1/versions", req.URL.Path)
+					r.Equal("page_size=1", req.URL.RawQuery)
+					w.Header().Set("Content-Type", "application/json")
+					json.NewEncoder(w).Encode([]provisioning.Version{})
+					w.WriteHeader(http.StatusOK)
+				})
+				expectRequest(func(w http.ResponseWriter, req *http.Request) {
+					r.Equal(http.MethodPost, req.Method)
+					r.Equal("/provisioning/v1/services", req.URL.Path)
+					w.Header().Set("Content-Type", "application/json")
+					w.WriteHeader(http.StatusInternalServerError)
 				})
 			},
 			checks: []resource.TestCheckFunc{

@@ -184,6 +184,9 @@ func handleError(resp *resty.Response) error {
 		return ErrorUnauthorized
 	}
 	if resp.Error() != nil {
+		if resp.StatusCode() == 500 {
+			return errors.New("SkySQL API returned 500 Internal Server Error")
+		}
 		errResp := resp.Error().(*ErrorResponse)
 		return errors.New(errResp.Errors[0].Message)
 	}

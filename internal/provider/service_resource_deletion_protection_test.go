@@ -56,7 +56,7 @@ func TestServiceResourceDeletionProtection(t *testing.T) {
 			Architecture: payload.Architecture,
 			Size:         payload.Size,
 			Nodes:        int(payload.Nodes),
-			SslEnabled:   payload.SSLEnabled,
+			SSLEnabled:   payload.SSLEnabled,
 			NosqlEnabled: payload.NoSQLEnabled,
 			FQDN:         "",
 			Status:       "pending_create",
@@ -74,6 +74,8 @@ func TestServiceResourceDeletionProtection(t *testing.T) {
 							Purpose: "readwrite",
 						},
 					},
+					Mechanism:       payload.Mechanism,
+					AllowedAccounts: payload.AllowedAccounts,
 				},
 			},
 			StorageVolume: struct {
@@ -94,97 +96,46 @@ func TestServiceResourceDeletionProtection(t *testing.T) {
 		json.NewEncoder(w).Encode(service)
 		w.WriteHeader(http.StatusCreated)
 	})
-	// Get service status
-	expectRequest(func(w http.ResponseWriter, req *http.Request) {
-		r.Equal(http.MethodGet, req.Method)
-		r.Equal("/provisioning/v1/services/"+serviceID, req.URL.Path)
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(&provisioning.Service{
-			ID:     serviceID,
-			Status: "ready",
+	for i := 0; i < 4; i++ {
+		// Get service status
+		expectRequest(func(w http.ResponseWriter, req *http.Request) {
+			r.Equal(http.MethodGet, req.Method)
+			r.Equal("/provisioning/v1/services/"+serviceID, req.URL.Path)
+			w.Header().Set("Content-Type", "application/json")
+			service.Status = "ready"
+			json.NewEncoder(w).Encode(service)
+			w.WriteHeader(http.StatusOK)
 		})
-		w.WriteHeader(http.StatusOK)
-	})
-	// Refresh state
-	expectRequest(func(w http.ResponseWriter, req *http.Request) {
-		r.Equal(http.MethodGet, req.Method)
-		r.Equal("/provisioning/v1/services/"+serviceID, req.URL.Path)
-		w.Header().Set("Content-Type", "application/json")
-		service.Status = "ready"
-		json.NewEncoder(w).Encode(&service)
-		w.WriteHeader(http.StatusOK)
-	})
-	// Refresh state
-	expectRequest(func(w http.ResponseWriter, req *http.Request) {
-		r.Equal(
-			fmt.Sprintf("%s %s/%s", http.MethodGet, "/provisioning/v1/services", serviceID),
-			fmt.Sprintf("%s %s", req.Method, req.URL.Path))
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(&service)
-		w.WriteHeader(http.StatusOK)
-	})
-	// Refresh state
-	expectRequest(func(w http.ResponseWriter, req *http.Request) {
-		r.Equal(
-			fmt.Sprintf("%s %s/%s", http.MethodGet, "/provisioning/v1/services", serviceID),
-			fmt.Sprintf("%s %s", req.Method, req.URL.Path))
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(&service)
-		w.WriteHeader(http.StatusOK)
-	})
+	}
 	// Update service endpoint
 	expectRequest(func(w http.ResponseWriter, req *http.Request) {
 		r.Equal(
 			fmt.Sprintf("%s %s/%s/endpoints", http.MethodPatch, "/provisioning/v1/services", serviceID),
 			fmt.Sprintf("%s %s", req.Method, req.URL.Path))
 		w.Header().Set("Content-Type", "application/json")
+		service.Endpoints[0].Mechanism = "privatelink"
+		service.Endpoints[0].AllowedAccounts = []string{"mdb-cnewport"}
+		service.Endpoints[0].Visibility = "private"
 		json.NewEncoder(w).Encode(&provisioning.PatchServiceEndpointsResponse{
 			{
-				Mechanism:       "privatelink",
-				AllowedAccounts: []string{"mdb-cnewport"},
-				Visibility:      "private",
+				Mechanism:       service.Endpoints[0].Mechanism,
+				AllowedAccounts: service.Endpoints[0].AllowedAccounts,
+				Visibility:      service.Endpoints[0].Visibility,
 			},
 		})
 		w.WriteHeader(http.StatusOK)
 	})
-	expectRequest(func(w http.ResponseWriter, req *http.Request) {
-		r.Equal(
-			fmt.Sprintf("%s %s/%s", http.MethodGet, "/provisioning/v1/services", serviceID),
-			fmt.Sprintf("%s %s", req.Method, req.URL.Path))
-		w.Header().Set("Content-Type", "application/json")
-		service.Status = "ready"
-		json.NewEncoder(w).Encode(&service)
-		w.WriteHeader(http.StatusOK)
-	})
-	expectRequest(func(w http.ResponseWriter, req *http.Request) {
-		r.Equal(
-			fmt.Sprintf("%s %s/%s", http.MethodGet, "/provisioning/v1/services", serviceID),
-			fmt.Sprintf("%s %s", req.Method, req.URL.Path))
-		w.Header().Set("Content-Type", "application/json")
-		service.Status = "ready"
-		json.NewEncoder(w).Encode(&service)
-		w.WriteHeader(http.StatusOK)
-	})
-	expectRequest(func(w http.ResponseWriter, req *http.Request) {
-		r.Equal(
-			fmt.Sprintf("%s %s/%s", http.MethodGet, "/provisioning/v1/services", serviceID),
-			fmt.Sprintf("%s %s", req.Method, req.URL.Path))
-		w.Header().Set("Content-Type", "application/json")
-		service.Status = "ready"
-		json.NewEncoder(w).Encode(&service)
-		w.WriteHeader(http.StatusOK)
-	})
-
-	expectRequest(func(w http.ResponseWriter, req *http.Request) {
-		r.Equal(
-			fmt.Sprintf("%s %s/%s", http.MethodGet, "/provisioning/v1/services", serviceID),
-			fmt.Sprintf("%s %s", req.Method, req.URL.Path))
-		w.Header().Set("Content-Type", "application/json")
-		service.Status = "ready"
-		json.NewEncoder(w).Encode(&service)
-		w.WriteHeader(http.StatusOK)
-	})
-
+	for i := 0; i < 4; i++ {
+		// Get service status
+		expectRequest(func(w http.ResponseWriter, req *http.Request) {
+			r.Equal(http.MethodGet, req.Method)
+			r.Equal("/provisioning/v1/services/"+serviceID, req.URL.Path)
+			w.Header().Set("Content-Type", "application/json")
+			service.Status = "ready"
+			json.NewEncoder(w).Encode(service)
+			w.WriteHeader(http.StatusOK)
+		})
+	}
 	expectRequest(func(w http.ResponseWriter, req *http.Request) {
 		r.Equal(
 			fmt.Sprintf("%s %s/%s/power", http.MethodPost, "/provisioning/v1/services", serviceID),
@@ -193,61 +144,26 @@ func TestServiceResourceDeletionProtection(t *testing.T) {
 		w.WriteHeader(http.StatusOK)
 	})
 
-	expectRequest(func(w http.ResponseWriter, req *http.Request) {
-		r.Equal(
-			fmt.Sprintf("%s %s/%s", http.MethodGet, "/provisioning/v1/services", serviceID),
-			fmt.Sprintf("%s %s", req.Method, req.URL.Path))
-		w.Header().Set("Content-Type", "application/json")
-		service.Status = "ready"
-		service.IsActive = false
-		json.NewEncoder(w).Encode(&service)
-		w.WriteHeader(http.StatusOK)
-	})
+	for i := 0; i < 5; i++ {
+		expectRequest(func(w http.ResponseWriter, req *http.Request) {
+			r.Equal(
+				fmt.Sprintf("%s %s/%s", http.MethodGet, "/provisioning/v1/services", serviceID),
+				fmt.Sprintf("%s %s", req.Method, req.URL.Path))
+			w.Header().Set("Content-Type", "application/json")
+			service.Status = "ready"
+			service.IsActive = false
+			json.NewEncoder(w).Encode(service)
+			w.WriteHeader(http.StatusOK)
+		})
+	}
 
-	expectRequest(func(w http.ResponseWriter, req *http.Request) {
-		r.Equal(
-			fmt.Sprintf("%s %s/%s", http.MethodGet, "/provisioning/v1/services", serviceID),
-			fmt.Sprintf("%s %s", req.Method, req.URL.Path))
-		w.Header().Set("Content-Type", "application/json")
-		service.Status = "ready"
-		service.IsActive = false
-		json.NewEncoder(w).Encode(&service)
-		w.WriteHeader(http.StatusOK)
-	})
-	// Refresh state
-	expectRequest(func(w http.ResponseWriter, req *http.Request) {
-		r.Equal(
-			fmt.Sprintf("%s %s/%s", http.MethodGet, "/provisioning/v1/services", serviceID),
-			fmt.Sprintf("%s %s", req.Method, req.URL.Path))
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(&service)
-		w.WriteHeader(http.StatusOK)
-	})
-	// Refresh state
-	expectRequest(func(w http.ResponseWriter, req *http.Request) {
-		r.Equal(
-			fmt.Sprintf("%s %s/%s", http.MethodGet, "/provisioning/v1/services", serviceID),
-			fmt.Sprintf("%s %s", req.Method, req.URL.Path))
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(&service)
-		w.WriteHeader(http.StatusOK)
-	})
-	// Refresh state
-	expectRequest(func(w http.ResponseWriter, req *http.Request) {
-		r.Equal(
-			fmt.Sprintf("%s %s/%s", http.MethodGet, "/provisioning/v1/services", serviceID),
-			fmt.Sprintf("%s %s", req.Method, req.URL.Path))
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(&service)
-		w.WriteHeader(http.StatusOK)
-	})
 	expectRequest(func(w http.ResponseWriter, req *http.Request) {
 		r.Equal(
 			fmt.Sprintf("%s %s/%s", http.MethodDelete, "/provisioning/v1/services", serviceID),
 			fmt.Sprintf("%s %s", req.Method, req.URL.Path))
 		w.Header().Set("Content-Type", "application/json")
 		service.Status = "ready"
-		json.NewEncoder(w).Encode(&service)
+		json.NewEncoder(w).Encode(service)
 		w.WriteHeader(http.StatusOK)
 	})
 

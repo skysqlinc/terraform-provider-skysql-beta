@@ -179,6 +179,7 @@ func (r *ServiceResource) Schema(ctx context.Context, req resource.SchemaRequest
 			},
 			"ssl_enabled": schema.BoolAttribute{
 				Optional:    true,
+				Computed:    true,
 				Description: "Whether to enable SSL. Valid values are: true or false",
 				PlanModifiers: []planmodifier.Bool{
 					boolplanmodifier.RequiresReplace(),
@@ -201,6 +202,7 @@ func (r *ServiceResource) Schema(ctx context.Context, req resource.SchemaRequest
 			},
 			"endpoint_mechanism": schema.StringAttribute{
 				Optional:    true,
+				Computed:    true,
 				Description: "The endpoint mechanism to use. Valid values are: privatelink or nlb",
 			},
 			"endpoint_allowed_accounts": schema.ListAttribute{
@@ -325,6 +327,7 @@ func (r *ServiceResource) Create(ctx context.Context, req resource.CreateRequest
 
 	// save into the Terraform state.
 	data.ID = types.StringValue(service.ID)
+	data.Name = types.StringValue(service.Name)
 
 	tflog.Trace(ctx, "created a resource")
 
@@ -345,7 +348,11 @@ func (r *ServiceResource) Create(ctx context.Context, req resource.CreateRequest
 	data.Size = types.StringValue(service.Size)
 	data.Version = types.StringValue(service.Version)
 	data.Storage = types.Int64Value(int64(service.StorageVolume.Size))
-
+	data.SSLEnabled = types.BoolValue(service.SSLEnabled)
+	if len(service.Endpoints) > 0 {
+		data.Mechanism = types.StringValue(service.Endpoints[0].Mechanism)
+		data.AllowedAccounts, _ = types.ListValueFrom(ctx, types.StringType, service.Endpoints[0].AllowedAccounts)
+	}
 	// Save data into Terraform state
 	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
 	if resp.Diagnostics.HasError() {
@@ -419,7 +426,7 @@ func (r *ServiceResource) readServiceState(ctx context.Context, data *ServiceRes
 	if err != nil {
 		return err
 	}
-	data.ID = types.StringValue(service.ID)
+	data.Name = types.StringValue(service.Name)
 	data.ServiceType = types.StringValue(service.ServiceType)
 	data.Provider = types.StringValue(service.Provider)
 	data.Region = types.StringValue(service.Region)
@@ -444,7 +451,11 @@ func (r *ServiceResource) readServiceState(ctx context.Context, data *ServiceRes
 		data.PrimaryHost = types.StringValue(service.PrimaryHost)
 	}
 	data.IsActive = types.BoolValue(service.IsActive)
-
+	data.SSLEnabled = types.BoolValue(service.SSLEnabled)
+	if len(service.Endpoints) > 0 {
+		data.Mechanism = types.StringValue(service.Endpoints[0].Mechanism)
+		data.AllowedAccounts, _ = types.ListValueFrom(ctx, types.StringType, service.Endpoints[0].AllowedAccounts)
+	}
 	return nil
 }
 
@@ -625,8 +636,11 @@ func (r *ServiceResource) updateServiceEndpoints(ctx context.Context, plan *Serv
 		return
 	}
 
-	if !(reflect.DeepEqual(plan.Mechanism.ValueString(), state.Mechanism.ValueString()) ||
-		reflect.DeepEqual(planAllowedAccounts, stateAllowedAccounts)) {
+	isMechanismChanged := plan.Mechanism.ValueString() != state.Mechanism.ValueString()
+
+	isAllowedAccountsChanged := !reflect.DeepEqual(planAllowedAccounts, stateAllowedAccounts)
+
+	if isMechanismChanged || isAllowedAccountsChanged {
 		tflog.Info(ctx, "Updating service allowed accounts", map[string]interface{}{
 			"id": state.ID.ValueString(),
 		})
@@ -635,6 +649,10 @@ func (r *ServiceResource) updateServiceEndpoints(ctx context.Context, plan *Serv
 		if plan.Mechanism.ValueString() == "privatelink" {
 			visibility = "private"
 		} else {
+			planAllowedAccounts = []string{}
+		}
+
+		if planAllowedAccounts == nil {
 			planAllowedAccounts = []string{}
 		}
 
@@ -784,6 +802,12 @@ func (r *ServiceResource) ValidateConfig(ctx context.Context, req resource.Valid
 
 	if resp.Diagnostics.HasError() {
 		return
+	}
+
+	if !Contains[string]([]string{"gcp", "aws"}, config.Provider.ValueString()) {
+		resp.Diagnostics.AddAttributeError(path.Root("provider"),
+			"Invalid provider value",
+			fmt.Sprintf("The %q is an invalid value. Allowed values: aws or gcp", config.Provider.ValueString()))
 	}
 
 	if config.Provider.ValueString() == "aws" {

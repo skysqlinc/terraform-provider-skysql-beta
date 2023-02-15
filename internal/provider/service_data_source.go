@@ -288,7 +288,7 @@ func (d *ServiceDataSource) Read(ctx context.Context, req datasource.ReadRequest
 	data.Architecture = types.StringValue(service.Architecture)
 	data.Size = types.StringValue(service.Size)
 	data.Nodes = types.Int64Value(int64(service.Nodes))
-	data.SslEnabled = types.BoolValue(service.SslEnabled)
+	data.SslEnabled = types.BoolValue(service.SSLEnabled)
 	data.NosqlEnabled = types.BoolValue(service.NosqlEnabled)
 	data.FQDN = types.StringValue(service.FQDN)
 	data.Status = types.StringValue(service.Status)
