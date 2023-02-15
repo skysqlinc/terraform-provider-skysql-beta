@@ -16,7 +16,7 @@ import (
 	"time"
 )
 
-func TestServiceResourceDeletionProtection(t *testing.T) {
+func TestServiceResourceAllowlistUpdate(t *testing.T) {
 	const serviceID = "dbdgf42002418"
 
 	testUrl, expectRequest, close := mockSkySQLAPI(t)
@@ -73,8 +73,12 @@ func TestServiceResourceDeletionProtection(t *testing.T) {
 							Purpose: "readwrite",
 						},
 					},
-					Mechanism:       payload.Mechanism,
-					AllowedAccounts: payload.AllowedAccounts,
+					AllowList: []provisioning.AllowListItem{
+						{
+							IPAddress: "192.158.1.38/32",
+							Comment:   "homeoffice",
+						},
+					},
 				},
 			},
 			StorageVolume: struct {
@@ -95,66 +99,79 @@ func TestServiceResourceDeletionProtection(t *testing.T) {
 		json.NewEncoder(w).Encode(service)
 		w.WriteHeader(http.StatusCreated)
 	})
-	for i := 0; i < 4; i++ {
-		// Get service status
-		expectRequest(func(w http.ResponseWriter, req *http.Request) {
-			r.Equal(http.MethodGet, req.Method)
-			r.Equal("/provisioning/v1/services/"+serviceID, req.URL.Path)
-			w.Header().Set("Content-Type", "application/json")
-			service.Status = "ready"
-			json.NewEncoder(w).Encode(service)
-			w.WriteHeader(http.StatusOK)
+	// Get service status
+	expectRequest(func(w http.ResponseWriter, req *http.Request) {
+		r.Equal(http.MethodGet, req.Method)
+		r.Equal("/provisioning/v1/services/"+serviceID, req.URL.Path)
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(&provisioning.Service{
+			ID:     serviceID,
+			Status: "ready",
 		})
-	}
-	// Update service endpoint
+		w.WriteHeader(http.StatusOK)
+	})
+	// Refresh state
+	expectRequest(func(w http.ResponseWriter, req *http.Request) {
+		r.Equal(http.MethodGet, req.Method)
+		r.Equal("/provisioning/v1/services/"+serviceID, req.URL.Path)
+		w.Header().Set("Content-Type", "application/json")
+		service.Status = "ready"
+		json.NewEncoder(w).Encode(&service)
+		w.WriteHeader(http.StatusOK)
+	})
+	// Refresh state
 	expectRequest(func(w http.ResponseWriter, req *http.Request) {
 		r.Equal(
-			fmt.Sprintf("%s %s/%s/endpoints", http.MethodPatch, "/provisioning/v1/services", serviceID),
+			fmt.Sprintf("%s %s/%s", http.MethodGet, "/provisioning/v1/services", serviceID),
 			fmt.Sprintf("%s %s", req.Method, req.URL.Path))
 		w.Header().Set("Content-Type", "application/json")
-		service.Endpoints[0].Mechanism = "privatelink"
-		service.Endpoints[0].AllowedAccounts = []string{"mdb-cnewport"}
-		service.Endpoints[0].Visibility = "private"
-		json.NewEncoder(w).Encode(&provisioning.PatchServiceEndpointsResponse{
+		json.NewEncoder(w).Encode(&service)
+		w.WriteHeader(http.StatusOK)
+	})
+	// Refresh state
+	expectRequest(func(w http.ResponseWriter, req *http.Request) {
+		r.Equal(
+			fmt.Sprintf("%s %s/%s", http.MethodGet, "/provisioning/v1/services", serviceID),
+			fmt.Sprintf("%s %s", req.Method, req.URL.Path))
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(&service)
+		w.WriteHeader(http.StatusOK)
+	})
+	// Update service allowlist
+	expectRequest(func(w http.ResponseWriter, req *http.Request) {
+		r.Equal(
+			fmt.Sprintf("%s %s/%s/security/allowlist", http.MethodPut, "/provisioning/v1/services", serviceID),
+			fmt.Sprintf("%s %s", req.Method, req.URL.Path))
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode([]struct {
+			AllowList []provisioning.AllowListItem `json:"allow_list"`
+		}{
 			{
-				Mechanism:       service.Endpoints[0].Mechanism,
-				AllowedAccounts: service.Endpoints[0].AllowedAccounts,
-				Visibility:      service.Endpoints[0].Visibility,
+				AllowList: []provisioning.AllowListItem{},
 			},
 		})
 		w.WriteHeader(http.StatusOK)
 	})
-	for i := 0; i < 4; i++ {
-		// Get service status
-		expectRequest(func(w http.ResponseWriter, req *http.Request) {
-			r.Equal(http.MethodGet, req.Method)
-			r.Equal("/provisioning/v1/services/"+serviceID, req.URL.Path)
-			w.Header().Set("Content-Type", "application/json")
-			service.Status = "ready"
-			json.NewEncoder(w).Encode(service)
-			w.WriteHeader(http.StatusOK)
-		})
-	}
 	expectRequest(func(w http.ResponseWriter, req *http.Request) {
 		r.Equal(
-			fmt.Sprintf("%s %s/%s/power", http.MethodPost, "/provisioning/v1/services", serviceID),
+			fmt.Sprintf("%s %s/%s", http.MethodGet, "/provisioning/v1/services", serviceID),
 			fmt.Sprintf("%s %s", req.Method, req.URL.Path))
 		w.Header().Set("Content-Type", "application/json")
+		service.Status = "ready"
+		service.Endpoints[0].AllowList = []provisioning.AllowListItem{}
+		json.NewEncoder(w).Encode(&service)
 		w.WriteHeader(http.StatusOK)
 	})
-
-	for i := 0; i < 5; i++ {
-		expectRequest(func(w http.ResponseWriter, req *http.Request) {
-			r.Equal(
-				fmt.Sprintf("%s %s/%s", http.MethodGet, "/provisioning/v1/services", serviceID),
-				fmt.Sprintf("%s %s", req.Method, req.URL.Path))
-			w.Header().Set("Content-Type", "application/json")
-			service.Status = "ready"
-			service.IsActive = false
-			json.NewEncoder(w).Encode(service)
-			w.WriteHeader(http.StatusOK)
-		})
-	}
+	expectRequest(func(w http.ResponseWriter, req *http.Request) {
+		r.Equal(
+			fmt.Sprintf("%s %s/%s", http.MethodGet, "/provisioning/v1/services", serviceID),
+			fmt.Sprintf("%s %s", req.Method, req.URL.Path))
+		w.Header().Set("Content-Type", "application/json")
+		service.Status = "ready"
+		service.Endpoints[0].AllowList = []provisioning.AllowListItem{}
+		json.NewEncoder(w).Encode(&service)
+		w.WriteHeader(http.StatusOK)
+	})
 
 	expectRequest(func(w http.ResponseWriter, req *http.Request) {
 		r.Equal(
@@ -162,7 +179,7 @@ func TestServiceResourceDeletionProtection(t *testing.T) {
 			fmt.Sprintf("%s %s", req.Method, req.URL.Path))
 		w.Header().Set("Content-Type", "application/json")
 		service.Status = "ready"
-		json.NewEncoder(w).Encode(service)
+		json.NewEncoder(w).Encode(&service)
 		w.WriteHeader(http.StatusOK)
 	})
 
@@ -199,92 +216,45 @@ resource "skysql_service" default {
   version        = "10.6.11-6-1"
   wait_for_creation = true
   wait_for_deletion = true
+  wait_for_update   = true
+  deletion_protection = false
+  allow_list = [
+    {
+      "ip": "192.158.1.38/32",
+      "comment": "homeoffice"
+    }
+  ]
 }
 	            `,
 				Check: resource.ComposeAggregateTestCheckFunc([]resource.TestCheckFunc{
 					resource.TestCheckResourceAttr("skysql_service.default", "id", serviceID),
-					resource.TestCheckResourceAttr("skysql_service.default", "deletion_protection", "true"),
+					resource.TestCheckResourceAttr("skysql_service.default", "allow_list.0.ip", "192.158.1.38/32"),
 				}...),
 			},
 			{
 				Config: `
-			resource "skysql_service" default {
-			 service_type   = "transactional"
-			 topology       = "standalone"
-			 cloud_provider = "gcp"
-			 region         = "us-central1"
-			 name           = "vf-test-gcp"
-			 architecture   = "amd64"
-			 nodes          = 1
-			 size           = "sky-2x8"
-			 storage        = 100
-			 ssl_enabled    = true
-			 version        = "10.6.11-6-1"
-			 wait_for_creation = true
-			 wait_for_deletion = true
-			 wait_for_update = true
-			 endpoint_mechanism      = "privatelink"
-			 endpoint_allowed_accounts = ["mdb-cnewport"]
-  			 deletion_protection = false
-			}
+resource "skysql_service" default {
+  service_type   = "transactional"
+  topology       = "standalone"
+  cloud_provider = "gcp"
+  region         = "us-central1"
+  name           = "vf-test-gcp"
+  architecture   = "amd64"
+  nodes          = 1
+  size           = "sky-2x8"
+  storage        = 100
+  ssl_enabled    = true
+  version        = "10.6.11-6-1"
+  wait_for_creation = true
+  wait_for_deletion = true
+  wait_for_update   = true
+  deletion_protection = false
+  allow_list = []
+}
 				            `,
 				Check: resource.ComposeAggregateTestCheckFunc([]resource.TestCheckFunc{
 					resource.TestCheckResourceAttr("skysql_service.default", "id", serviceID),
-					resource.TestCheckResourceAttr("skysql_service.default", "deletion_protection", "false"),
-				}...),
-			},
-			{
-				Config: `
-			resource "skysql_service" default {
-			 service_type   = "transactional"
-			 topology       = "standalone"
-			 cloud_provider = "gcp"
-			 region         = "us-central1"
-			 name           = "vf-test-gcp"
-			 architecture   = "amd64"
-			 nodes          = 1
-			 size           = "sky-2x8"
-			 storage        = 100
-			 ssl_enabled    = true
-			 version        = "10.6.11-6-1"
-			 wait_for_creation = true
-			 wait_for_deletion = true
-			 wait_for_update = true
-			 endpoint_mechanism      = "privatelink"
-			 endpoint_allowed_accounts = ["mdb-cnewport"]
-			 is_active      = false
-			}
-				            `,
-				Check: resource.ComposeAggregateTestCheckFunc([]resource.TestCheckFunc{
-					resource.TestCheckResourceAttr("skysql_service.default", "id", serviceID),
-					resource.TestCheckResourceAttr("skysql_service.default", "deletion_protection", "true"),
-				}...),
-			},
-			{
-				Config: `
-			resource "skysql_service" default {
-			 service_type   = "transactional"
-			 topology       = "standalone"
-			 cloud_provider = "gcp"
-			 region         = "us-central1"
-			 name           = "vf-test-gcp"
-			 architecture   = "amd64"
-			 nodes          = 1
-			 size           = "sky-2x8"
-			 storage        = 100
-			 ssl_enabled    = true
-			 version        = "10.6.11-6-1"
-			 wait_for_creation = true
-			 wait_for_deletion = true
-			 wait_for_update = true
-			 endpoint_mechanism      = "privatelink"
-			 endpoint_allowed_accounts = ["mdb-cnewport"]
-			 is_active      = false
-			 deletion_protection = false
-			}
-				            `,
-				Check: resource.ComposeAggregateTestCheckFunc([]resource.TestCheckFunc{
-					resource.TestCheckResourceAttr("skysql_service.default", "id", serviceID),
+					resource.TestCheckNoResourceAttr("skysql_service.default", "allow_list.0.ip"),
 				}...),
 			},
 		},

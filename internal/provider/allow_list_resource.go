@@ -41,8 +41,8 @@ type ServiceAllowListResourceModel struct {
 }
 
 type AllowListModel struct {
-	IPAddress string `tfsdk:"ip"`
-	Comment   string `tfsdk:"comment"`
+	IPAddress types.String `tfsdk:"ip"`
+	Comment   types.String `tfsdk:"comment"`
 }
 
 func (r *ServiceAllowListResource) Metadata(ctx context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
@@ -124,8 +124,8 @@ func (r *ServiceAllowListResource) Create(ctx context.Context, req resource.Crea
 
 	allowListUpdateRequest := make([]provisioning.AllowListItem, len(data.AllowList))
 	for i := range data.AllowList {
-		allowListUpdateRequest[i].IPAddress = data.AllowList[i].IPAddress
-		allowListUpdateRequest[i].Comment = data.AllowList[i].Comment
+		allowListUpdateRequest[i].IPAddress = data.AllowList[i].IPAddress.ValueString()
+		allowListUpdateRequest[i].Comment = data.AllowList[i].Comment.ValueString()
 	}
 
 	allowListResp, err := r.client.UpdateServiceAllowListByID(ctx, data.ID.ValueString(), allowListUpdateRequest)
@@ -136,8 +136,8 @@ func (r *ServiceAllowListResource) Create(ctx context.Context, req resource.Crea
 
 	data.AllowList = make([]AllowListModel, len(allowListResp))
 	for i := range allowListResp {
-		data.AllowList[i].IPAddress = allowListResp[i].IPAddress
-		data.AllowList[i].Comment = allowListResp[i].Comment
+		data.AllowList[i].IPAddress = types.StringValue(allowListResp[i].IPAddress)
+		data.AllowList[i].Comment = types.StringValue(allowListResp[i].Comment)
 	}
 
 	// save into the Terraform state.
@@ -199,8 +199,8 @@ func (r *ServiceAllowListResource) Read(ctx context.Context, req resource.ReadRe
 		data.AllowList = make([]AllowListModel, len(allowListResp[0].AllowList))
 		if len(allowListResp[0].AllowList) > 0 {
 			for i := range allowListResp {
-				data.AllowList[i].IPAddress = allowListResp[0].AllowList[i].IPAddress
-				data.AllowList[i].Comment = allowListResp[0].AllowList[i].Comment
+				data.AllowList[i].IPAddress = types.StringValue(allowListResp[0].AllowList[i].IPAddress)
+				data.AllowList[i].Comment = types.StringValue(allowListResp[0].AllowList[i].Comment)
 			}
 		}
 	}
@@ -236,8 +236,8 @@ func (r *ServiceAllowListResource) Update(ctx context.Context, req resource.Upda
 
 	allowListUpdateRequest := make([]provisioning.AllowListItem, len(plan.AllowList))
 	for i := range plan.AllowList {
-		allowListUpdateRequest[i].IPAddress = plan.AllowList[i].IPAddress
-		allowListUpdateRequest[i].Comment = plan.AllowList[i].Comment
+		allowListUpdateRequest[i].IPAddress = plan.AllowList[i].IPAddress.ValueString()
+		allowListUpdateRequest[i].Comment = plan.AllowList[i].Comment.ValueString()
 	}
 
 	allowListResp, err := r.client.UpdateServiceAllowListByID(ctx, plan.ID.ValueString(), allowListUpdateRequest)
@@ -256,8 +256,8 @@ func (r *ServiceAllowListResource) Update(ctx context.Context, req resource.Upda
 
 	state.AllowList = make([]AllowListModel, len(allowListResp))
 	for i := range allowListResp {
-		state.AllowList[i].IPAddress = allowListResp[i].IPAddress
-		state.AllowList[i].Comment = allowListResp[i].Comment
+		state.AllowList[i].IPAddress = types.StringValue(allowListResp[i].IPAddress)
+		state.AllowList[i].Comment = types.StringValue(allowListResp[i].Comment)
 	}
 
 	// save into the Terraform state.
