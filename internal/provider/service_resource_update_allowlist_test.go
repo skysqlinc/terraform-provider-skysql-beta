@@ -55,7 +55,7 @@ func TestServiceResourceAllowlistUpdate(t *testing.T) {
 			Architecture: payload.Architecture,
 			Size:         payload.Size,
 			Nodes:        int(payload.Nodes),
-			SslEnabled:   payload.SSLEnabled,
+			SSLEnabled:   payload.SSLEnabled,
 			NosqlEnabled: payload.NoSQLEnabled,
 			FQDN:         "",
 			Status:       "pending_create",
