@@ -4,7 +4,7 @@ description: |-
    The MariaDB SkySQL Terraform Provider allows database services in MariaDB SkySQL to be managed using Terraform.
 ---
 
-# SKYSQL-ALPHA Provider
+# SKYSQL-BETA Provider
 
 The current implementation is in Technical preview and will become available in the Terraform registry in the near future.
 It allows configuring any SkySQL DB topology using the Terraform's declarative language.
@@ -207,6 +207,7 @@ on darwin_arm64
 
     ```bash
         export TF_SKYSQL_API_ACCESS_TOKEN=[SKYSQL API access token]
+        export TF_SKYSQL_API_BASE_URL=https://api.mariadb.com
     ```
 
 3. Create a new SkySQL service using the example below:
