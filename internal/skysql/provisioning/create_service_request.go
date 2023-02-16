@@ -15,10 +15,12 @@ type CreateServiceRequest struct {
 	VolumeIOPS         uint            `json:"volume_iops"`
 	SSLEnabled         bool            `json:"ssl_enabled"`
 	NoSQLEnabled       bool            `json:"nosql_enabled"`
-	VolumeType         string          `json:"volume_type"`
+	VolumeType         string          `json:"volume_type,omitempty"`
 	AllowedAccounts    []string        `json:"endpoint_allowed_accounts,omitempty"`
 	Mechanism          string          `json:"endpoint_mechanism,omitempty"`
 	ReplicationEnabled bool            `json:"replication_enabled,omitempty"`
 	PrimaryHost        string          `json:"primary_host,omitempty"`
 	AllowList          []AllowListItem `json:"allow_list,omitempty"`
+	MaxscaleNodes      uint            `json:"maxscale_nodes,omitempty"`
+	MaxscaleSize       *string         `json:"maxscale_size,omitempty"`
 }

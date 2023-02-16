@@ -275,33 +275,13 @@ func (c *Client) ModifyServiceNodeNumber(ctx context.Context, serviceID string, 
 	return err
 }
 
-func (c *Client) ModifyServiceStorageSize(ctx context.Context, serviceID string, size int64) error {
+func (c *Client) ModifyServiceStorage(ctx context.Context, serviceID string, size int64, iops int64) error {
 	resp, err := c.HTTPClient.R().
 		SetHeader("Accept", "application/json").
 		SetContext(ctx).
-		SetBody(&provisioning.UpdateStorageSizeRequest{Size: size}).
+		SetBody(&provisioning.UpdateStorageRequest{Size: size, IOPS: iops}).
 		SetError(&ErrorResponse{}).
-		Patch("/provisioning/v1/services/" + serviceID + "/storage/size")
-	if err != nil {
-		return err
-	}
-	if resp.IsError() {
-		return handleError(resp)
-	}
-
-	return err
-}
-
-func (c *Client) ModifyServiceStorageIOPS(ctx context.Context, serviceID string, volumeType string, IOPS int64) error {
-	resp, err := c.HTTPClient.R().
-		SetHeader("Accept", "application/json").
-		SetContext(ctx).
-		SetBody(&provisioning.UpdateStorageIOPSRequest{
-			IOPS:       IOPS,
-			VolumeType: volumeType,
-		}).
-		SetError(&ErrorResponse{}).
-		Patch("/provisioning/v1/services/" + serviceID + "/storage/iops")
+		Patch("/provisioning/v1/services/" + serviceID + "/storage")
 	if err != nil {
 		return err
 	}

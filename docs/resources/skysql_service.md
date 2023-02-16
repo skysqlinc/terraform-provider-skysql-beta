@@ -1,5 +1,5 @@
 ---
-page_title: "skysql_service Resource - terraform-provider-skysql-beta"
+page_title: "skysql_service Resource - terraform-provider-skysql-alpha"
 subcategory: ""
 description: |-
   Creates and manages a service in SkySQL
@@ -52,6 +52,8 @@ resource "skysql_service" "default" {
 - `endpoint_allowed_accounts` (List of String) The list of cloud accounts (aws account ids or gcp projects) that are allowed to access the service
 - `endpoint_mechanism` (String) The endpoint mechanism to use. Valid values are: privatelink or nlb
 - `is_active` (Boolean) Whether the service is active
+- `maxscale_nodes` (Number) The number of MaxScale nodes
+- `maxscale_size` (String) The size of the MaxScale nodes. Valid values are: sky-2x4, sky-2x8 etc
 - `nodes` (Number) The number of nodes
 - `nosql_enabled` (Boolean) Whether to enable NoSQL. Valid values are: true or false
 - `primary_host` (String) The primary host of the service

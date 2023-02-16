@@ -19,9 +19,6 @@ var _ provider.Provider = &skySQLProvider{}
 
 var configureOnce resync.Once
 
-var accessToken string
-var baseURL string
-
 // skySQLProvider defines the provider implementation.
 type skySQLProvider struct {
 	// version is set to the provider version on release, "dev" when the
@@ -57,9 +54,18 @@ func (p *skySQLProvider) Schema(ctx context.Context, req provider.SchemaRequest,
 	}
 }
 
+// Function to read environment with a default value
+func getEnv(key, fallback string) string {
+	value, ok := os.LookupEnv(key)
+	if !ok {
+		return fallback
+	}
+	return value
+}
+
 func (p *skySQLProvider) Configure(ctx context.Context, req provider.ConfigureRequest, resp *provider.ConfigureResponse) {
 	accessToken := os.Getenv("TF_SKYSQL_API_ACCESS_TOKEN")
-	baseURL := os.Getenv("TF_SKYSQL_API_BASE_URL")
+	baseURL := getEnv("TF_SKYSQL_API_BASE_URL", "https://api.mariadb.com")
 
 	var data SkySQLProviderModel
 

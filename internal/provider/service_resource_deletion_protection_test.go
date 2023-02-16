@@ -91,6 +91,8 @@ func TestServiceResourceDeletionProtection(t *testing.T) {
 			ServiceType:        payload.ServiceType,
 			ReplicationEnabled: false,
 			PrimaryHost:        "",
+			MaxscaleSize:       &(payload.Size),
+			MaxscaleNodes:      0,
 		}
 		json.NewEncoder(w).Encode(service)
 		w.WriteHeader(http.StatusCreated)
@@ -209,23 +211,23 @@ resource "skysql_service" default {
 			{
 				Config: `
 			resource "skysql_service" default {
-			 service_type   = "transactional"
-			 topology       = "standalone"
-			 cloud_provider = "gcp"
-			 region         = "us-central1"
-			 name           = "vf-test-gcp"
-			 architecture   = "amd64"
-			 nodes          = 1
-			 size           = "sky-2x8"
-			 storage        = 100
-			 ssl_enabled    = true
-			 version        = "10.6.11-6-1"
-			 wait_for_creation = true
-			 wait_for_deletion = true
-			 wait_for_update = true
-			 endpoint_mechanism      = "privatelink"
-			 endpoint_allowed_accounts = ["mdb-cnewport"]
-  			 deletion_protection = false
+			service_type   = "transactional"
+			topology       = "standalone"
+			cloud_provider = "gcp"
+			region         = "us-central1"
+			name           = "vf-test-gcp"
+			architecture   = "amd64"
+			nodes          = 1
+			size           = "sky-2x8"
+			storage        = 100
+			ssl_enabled    = true
+			version        = "10.6.11-6-1"
+			wait_for_creation = true
+			wait_for_deletion = true
+			wait_for_update = true
+			endpoint_mechanism      = "privatelink"
+			endpoint_allowed_accounts = ["mdb-cnewport"]
+			deletion_protection = false
 			}
 				            `,
 				Check: resource.ComposeAggregateTestCheckFunc([]resource.TestCheckFunc{
@@ -236,23 +238,23 @@ resource "skysql_service" default {
 			{
 				Config: `
 			resource "skysql_service" default {
-			 service_type   = "transactional"
-			 topology       = "standalone"
-			 cloud_provider = "gcp"
-			 region         = "us-central1"
-			 name           = "vf-test-gcp"
-			 architecture   = "amd64"
-			 nodes          = 1
-			 size           = "sky-2x8"
-			 storage        = 100
-			 ssl_enabled    = true
-			 version        = "10.6.11-6-1"
-			 wait_for_creation = true
-			 wait_for_deletion = true
-			 wait_for_update = true
-			 endpoint_mechanism      = "privatelink"
-			 endpoint_allowed_accounts = ["mdb-cnewport"]
-			 is_active      = false
+			service_type   = "transactional"
+			topology       = "standalone"
+			cloud_provider = "gcp"
+			region         = "us-central1"
+			name           = "vf-test-gcp"
+			architecture   = "amd64"
+			nodes          = 1
+			size           = "sky-2x8"
+			storage        = 100
+			ssl_enabled    = true
+			version        = "10.6.11-6-1"
+			wait_for_creation = true
+			wait_for_deletion = true
+			wait_for_update = true
+			endpoint_mechanism      = "privatelink"
+			endpoint_allowed_accounts = ["mdb-cnewport"]
+			is_active      = false
 			}
 				            `,
 				Check: resource.ComposeAggregateTestCheckFunc([]resource.TestCheckFunc{
@@ -263,24 +265,24 @@ resource "skysql_service" default {
 			{
 				Config: `
 			resource "skysql_service" default {
-			 service_type   = "transactional"
-			 topology       = "standalone"
-			 cloud_provider = "gcp"
-			 region         = "us-central1"
-			 name           = "vf-test-gcp"
-			 architecture   = "amd64"
-			 nodes          = 1
-			 size           = "sky-2x8"
-			 storage        = 100
-			 ssl_enabled    = true
-			 version        = "10.6.11-6-1"
-			 wait_for_creation = true
-			 wait_for_deletion = true
-			 wait_for_update = true
-			 endpoint_mechanism      = "privatelink"
-			 endpoint_allowed_accounts = ["mdb-cnewport"]
-			 is_active      = false
-			 deletion_protection = false
+			service_type   = "transactional"
+			topology       = "standalone"
+			cloud_provider = "gcp"
+			region         = "us-central1"
+			name           = "vf-test-gcp"
+			architecture   = "amd64"
+			nodes          = 1
+			size           = "sky-2x8"
+			storage        = 100
+			ssl_enabled    = true
+			version        = "10.6.11-6-1"
+			wait_for_creation = true
+			wait_for_deletion = true
+			wait_for_update = true
+			endpoint_mechanism      = "privatelink"
+			endpoint_allowed_accounts = ["mdb-cnewport"]
+			is_active      = false
+			deletion_protection = false
 			}
 				            `,
 				Check: resource.ComposeAggregateTestCheckFunc([]resource.TestCheckFunc{

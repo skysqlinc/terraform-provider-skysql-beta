@@ -30,6 +30,8 @@ type Service struct {
 	ServiceType        string   `json:"service_type"`
 	ReplicationEnabled bool     `json:"replication_enabled"`
 	PrimaryHost        string   `json:"primary_host"`
+	MaxscaleNodes      uint     `json:"maxscale_nodes,omitempty"`
+	MaxscaleSize       *string  `json:"maxscale_size,omitempty"`
 }
 
 type Endpoint struct {

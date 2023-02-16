@@ -63,3 +63,5 @@ func Contains[T comparable](slice []T, value T) bool {
 
 	return false
 }
+
+func toPtr[t any](u t) *t { return &u }

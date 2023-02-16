@@ -9,15 +9,10 @@ terraform {
 provider "skysql" {}
 
 # Retrieve the list of available versions for each topology like standalone, masterslave, xpand-direct etc
-data "skysql_versions" "default" {}
-
-
-# Filter the list of versions to only include  versions for the standalone topology
-locals {
-  sky_versions_filtered = [
-    for item in data.skysql_versions.default.versions : item if item.topology == "standalone"
-  ]
+data "skysql_versions" "default" {
+  topology = "es-single"
 }
+
 
 # Retrieve the list of projects. Project is a way of grouping the services.
 # Note: Next release will make project_id optional in the create service api
@@ -30,7 +25,7 @@ output "skysql_projects" {
 # Create a service
 resource "skysql_service" "default" {
   service_type   = "transactional"
-  topology       = "standalone"
+  topology       = "es-single"
   cloud_provider = "gcp"
   region         = "us-central1"
   name           = "my-first-service"
@@ -39,7 +34,7 @@ resource "skysql_service" "default" {
   size           = "sky-2x8"
   storage        = 100
   ssl_enabled    = true
-  version        = local.sky_versions_filtered[0].name
+  version        = data.skysql_versions.default.versions[0].name
   # [Optional] Below you can find example with optional parameters how to configure a privatelink connection
   endpoint_mechanism        = "privatelink"
   endpoint_allowed_accounts = ["gcp-project-id"]
@@ -47,6 +42,13 @@ resource "skysql_service" "default" {
   # The service create is an asynchronous operation.
   # if you want to wait for the service to be created set wait_for_creation to true
   wait_for_creation = true
+  # You need to add your ip address in the CIRD format to allow list in order to connect to the service
+  allow_list = [
+    {
+      "ip" : "104.28.203.45/32",
+      "comment" : "homeoffice"
+    }
+  ]
 }
 
 # Retrieve the service default credentials.
@@ -71,19 +73,6 @@ output "skysql_credentials" {
   sensitive = true
 }
 
-# You need to add your ip address in the CIRD format to allow list in order to connect to the service
-# Note: the operation is asynchronous by default.
-# If you want to wait for the operation to complete set wait_for_creation to true
-resource "skysql_allow_list" "default" {
-  service_id = skysql_service.default.id
-  allow_list = [
-    {
-      "ip" : "104.28.203.45/32",
-      "comment" : "homeoffice"
-    }
-  ]
-  wait_for_creation = true
-}
 
 # Example how you can generate a command line for the database connection
 output "skysql_cmd" {

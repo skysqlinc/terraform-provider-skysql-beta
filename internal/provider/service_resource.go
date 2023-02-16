@@ -2,6 +2,7 @@ package provider
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/hashicorp/terraform-plugin-framework-timeouts/resource/timeouts"
@@ -12,6 +13,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/boolplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/int64planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
@@ -83,6 +85,8 @@ type ServiceResourceModel struct {
 	WaitForUpdate      types.Bool     `tfsdk:"wait_for_update"`
 	DeletionProtection types.Bool     `tfsdk:"deletion_protection"`
 	AllowList          types.List     `tfsdk:"allow_list"`
+	MaxscaleNodes      types.Int64    `tfsdk:"maxscale_nodes"`
+	MaxscaleSize       types.String   `tfsdk:"maxscale_size"`
 }
 
 // ServiceResourceNamedPortModel is an endpoint port
@@ -289,6 +293,20 @@ func (r *ServiceResource) Schema(ctx context.Context, req resource.SchemaRequest
 					},
 				},
 			},
+			"maxscale_nodes": schema.Int64Attribute{
+				Optional:    true,
+				Description: "The number of MaxScale nodes",
+				PlanModifiers: []planmodifier.Int64{
+					int64planmodifier.RequiresReplace(),
+				},
+			},
+			"maxscale_size": schema.StringAttribute{
+				Optional:    true,
+				Description: "The size of the MaxScale nodes. Valid values are: sky-2x4, sky-2x8 etc",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.RequiresReplace(),
+				},
+			},
 		},
 		Blocks: map[string]schema.Block{
 			"timeouts": timeouts.Block(ctx, timeouts.Opts{
@@ -349,7 +367,21 @@ func (r *ServiceResource) Create(ctx context.Context, req resource.CreateRequest
 		Mechanism:          data.Mechanism.ValueString(),
 		ReplicationEnabled: data.ReplicationEnabled.ValueBool(),
 		PrimaryHost:        data.PrimaryHost.ValueString(),
+		MaxscaleNodes:      uint(data.MaxscaleNodes.ValueInt64()),
 	}
+
+	if !data.MaxscaleSize.IsUnknown() && !data.MaxscaleSize.IsNull() && len(data.MaxscaleSize.ValueString()) > 0 {
+		createServiceRequest.MaxscaleSize = toPtr[string](data.MaxscaleSize.ValueString())
+	} else {
+		createServiceRequest.MaxscaleSize = nil
+	}
+
+	b, err := json.Marshal(createServiceRequest)
+	if err != nil {
+		resp.Diagnostics.AddError("Failed to marshal create service request", err.Error())
+		return
+	}
+	tflog.Debug(ctx, string(b))
 
 	if !data.AllowList.IsUnknown() {
 		var allowList []AllowListModel
@@ -406,17 +438,14 @@ func (r *ServiceResource) Create(ctx context.Context, req resource.CreateRequest
 	if len(service.Endpoints) > 0 {
 		data.Mechanism = types.StringValue(service.Endpoints[0].Mechanism)
 		data.AllowedAccounts, _ = types.ListValueFrom(ctx, types.StringType, service.Endpoints[0].AllowedAccounts)
+		data.AllowList, _ = r.allowListToListType(ctx, service.Endpoints[0].AllowList)
 	}
-
-	if len(service.Endpoints) > 0 {
-		var cdiags diag.Diagnostics
-		data.AllowList, cdiags = r.allowListToListType(ctx, service.Endpoints[0].AllowList)
-		if cdiags.HasError() {
-			resp.Diagnostics.Append(cdiags...)
-			return
-		}
+	if !(data.MaxscaleSize.IsUnknown() || data.MaxscaleSize.IsNull()) && service.MaxscaleSize != nil {
+		data.MaxscaleSize = types.StringValue(*service.MaxscaleSize)
 	}
-
+	if !(data.MaxscaleNodes.IsUnknown() || data.MaxscaleNodes.IsNull()) {
+		data.MaxscaleNodes = types.Int64Value(int64(service.MaxscaleNodes))
+	}
 	// Save data into Terraform state
 	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
 	if resp.Diagnostics.HasError() {
@@ -540,7 +569,14 @@ func (r *ServiceResource) readServiceState(ctx context.Context, data *ServiceRes
 		data.AllowedAccounts, _ = types.ListValueFrom(ctx, types.StringType, service.Endpoints[0].AllowedAccounts)
 		data.AllowList, _ = r.allowListToListType(ctx, service.Endpoints[0].AllowList)
 	}
-
+	if !(data.MaxscaleSize.IsUnknown() || data.MaxscaleSize.IsNull()) && service.MaxscaleSize != nil {
+		data.MaxscaleSize = types.StringValue(*service.MaxscaleSize)
+	} else {
+		data.MaxscaleSize = types.StringNull()
+	}
+	if !(data.MaxscaleNodes.IsUnknown() || data.MaxscaleSize.IsNull()) {
+		data.MaxscaleNodes = types.Int64Value(int64(service.MaxscaleNodes))
+	}
 	return nil
 }
 
@@ -607,12 +643,7 @@ func (r *ServiceResource) Update(ctx context.Context, req resource.UpdateRequest
 		return
 	}
 
-	r.updateServiceStorageSize(ctx, plan, state, resp)
-	if resp.Diagnostics.HasError() {
-		return
-	}
-
-	r.updateServiceStorageIOPS(ctx, plan, state, resp)
+	r.updateServiceStorage(ctx, plan, state, resp)
 	if resp.Diagnostics.HasError() {
 		return
 	}
@@ -623,42 +654,25 @@ func (r *ServiceResource) Update(ctx context.Context, req resource.UpdateRequest
 	}
 }
 
-func (r *ServiceResource) updateServiceStorageIOPS(ctx context.Context, plan *ServiceResourceModel, state *ServiceResourceModel, resp *resource.UpdateResponse) {
-	if plan.VolumeIOPS.ValueInt64() != state.VolumeIOPS.ValueInt64() || plan.VolumeType.ValueString() != state.VolumeType.ValueString() {
-		tflog.Info(ctx, "Updating service storage IOPS", map[string]interface{}{
-			"id": state.ID.ValueString(),
-		})
-		err := r.client.ModifyServiceStorageIOPS(ctx, state.ID.ValueString(), plan.VolumeType.ValueString(), plan.VolumeIOPS.ValueInt64())
-		if err != nil {
-			resp.Diagnostics.AddError("Can not update service storage IOPS", err.Error())
-			return
-		}
-		state.VolumeIOPS = plan.VolumeIOPS
-		state.VolumeType = plan.VolumeType
-		resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
-		if resp.Diagnostics.HasError() {
-			return
-		}
-		r.waitForUpdate(ctx, state, err, resp)
-	}
-}
-
-func (r *ServiceResource) updateServiceStorageSize(ctx context.Context, plan *ServiceResourceModel, state *ServiceResourceModel, resp *resource.UpdateResponse) {
-	if plan.Storage.ValueInt64() != state.Storage.ValueInt64() {
+func (r *ServiceResource) updateServiceStorage(ctx context.Context, plan *ServiceResourceModel, state *ServiceResourceModel, resp *resource.UpdateResponse) {
+	if plan.Storage.ValueInt64() != state.Storage.ValueInt64() || plan.VolumeIOPS.ValueInt64() != state.VolumeIOPS.ValueInt64() {
 		tflog.Info(ctx, "Updating storage size for the service", map[string]interface{}{
-			"id":   state.ID.ValueString(),
-			"from": state.Storage.ValueInt64(),
-			"to":   plan.Storage.ValueInt64(),
+			"id":        state.ID.ValueString(),
+			"from":      state.Storage.ValueInt64(),
+			"to":        plan.Storage.ValueInt64(),
+			"iops_from": state.VolumeIOPS.ValueInt64(),
+			"iops_to":   plan.VolumeIOPS.ValueInt64(),
 		})
 
-		err := r.client.ModifyServiceStorageSize(ctx, state.ID.ValueString(), plan.Storage.ValueInt64())
+		err := r.client.ModifyServiceStorage(ctx, state.ID.ValueString(), plan.Storage.ValueInt64(), plan.VolumeIOPS.ValueInt64())
 		if err != nil {
-			resp.Diagnostics.AddError("Error updating a storage size for the service",
+			resp.Diagnostics.AddError("Error updating a storage for the service",
 				fmt.Sprintf("Unable to update a storage size for the service, got error: %s", err))
 			return
 		}
 
 		state.Storage = plan.Storage
+		state.VolumeIOPS = plan.VolumeIOPS
 		resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
 		if resp.Diagnostics.HasError() {
 			return
@@ -746,7 +760,7 @@ func (r *ServiceResource) updateServiceEndpoints(ctx context.Context, plan *Serv
 			planAllowedAccounts = []string{}
 		}
 
-		_, err := r.client.ModifyServiceEndpoints(ctx,
+		endpoint, err := r.client.ModifyServiceEndpoints(ctx,
 			state.ID.ValueString(),
 			plan.Mechanism.ValueString(),
 			planAllowedAccounts,
@@ -756,8 +770,8 @@ func (r *ServiceResource) updateServiceEndpoints(ctx context.Context, plan *Serv
 			return
 		}
 
-		state.AllowedAccounts = plan.AllowedAccounts
-		state.Mechanism = plan.Mechanism
+		state.Mechanism = types.StringValue(endpoint.Mechanism)
+		state.AllowedAccounts, _ = types.ListValueFrom(ctx, types.StringType, endpoint.AllowedAccounts)
 
 		// Save updated data into Terraform state
 		resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)

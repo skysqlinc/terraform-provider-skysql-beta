@@ -6,7 +6,9 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/types"
+	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/mariadb-corporation/terraform-provider-skysql-beta/internal/skysql"
+	"net/url"
 )
 
 // Ensure provider defined types fully satisfy framework interfaces
@@ -22,6 +24,7 @@ type VersionsDataSource struct {
 }
 
 type VersionDataSourceDataSourceModel struct {
+	Topology types.String   `tfsdk:"topology"`
 	Versions []VersionModel `tfsdk:"versions"`
 }
 
@@ -45,6 +48,9 @@ func (d *VersionsDataSource) Schema(ctx context.Context, req datasource.SchemaRe
 	resp.Schema = schema.Schema{
 		Description: "SkySQL server versions",
 		Attributes: map[string]schema.Attribute{
+			"topology": schema.StringAttribute{
+				Optional: true,
+			},
 			"versions": schema.ListNestedAttribute{
 				Computed: true,
 				NestedObject: schema.NestedAttributeObject{
@@ -122,7 +128,14 @@ func (d *VersionsDataSource) Read(ctx context.Context, req datasource.ReadReques
 		return
 	}
 
-	versions, err := d.client.GetVersions(ctx)
+	versions, err := d.client.GetVersions(ctx, func(values url.Values) {
+		if !state.Topology.IsNull() && len(state.Topology.String()) > 0 {
+			tflog.Info(ctx, "Filtering versions by topology", map[string]interface{}{
+				"topology": state.Topology.String(),
+			})
+			values.Set("topology", state.Topology.ValueString())
+		}
+	})
 	if err != nil {
 		resp.Diagnostics.AddError("Unable to Read SkySQL versions", err.Error())
 		return

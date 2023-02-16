@@ -162,34 +162,14 @@ func TestServiceResourceScaleTest(t *testing.T) {
 	})
 	expectRequest(func(w http.ResponseWriter, req *http.Request) {
 		r.Equal(
-			fmt.Sprintf("%s %s/%s/storage/size", http.MethodPatch, "/provisioning/v1/services", serviceID),
+			fmt.Sprintf("%s %s/%s/storage", http.MethodPatch, "/provisioning/v1/services", serviceID),
 			fmt.Sprintf("%s %s", req.Method, req.URL.Path))
 		w.Header().Set("Content-Type", "application/json")
-		payload := &provisioning.UpdateStorageSizeRequest{}
+		payload := &provisioning.UpdateStorageRequest{}
 		err := json.NewDecoder(req.Body).Decode(payload)
 		r.NoError(err)
-		service.StorageVolume.Size = int(payload.Size)
-		w.WriteHeader(http.StatusOK)
-	})
-	expectRequest(func(w http.ResponseWriter, req *http.Request) {
-		r.Equal(
-			fmt.Sprintf("%s %s/%s", http.MethodGet, "/provisioning/v1/services", serviceID),
-			fmt.Sprintf("%s %s", req.Method, req.URL.Path))
-		w.Header().Set("Content-Type", "application/json")
-		service.Status = "ready"
-		json.NewEncoder(w).Encode(&service)
-		w.WriteHeader(http.StatusOK)
-	})
-	expectRequest(func(w http.ResponseWriter, req *http.Request) {
-		r.Equal(
-			fmt.Sprintf("%s %s/%s/storage/iops", http.MethodPatch, "/provisioning/v1/services", serviceID),
-			fmt.Sprintf("%s %s", req.Method, req.URL.Path))
-		w.Header().Set("Content-Type", "application/json")
-		payload := &provisioning.UpdateStorageIOPSRequest{}
-		err := json.NewDecoder(req.Body).Decode(payload)
-		r.NoError(err)
-		service.StorageVolume.VolumeType = payload.VolumeType
 		service.StorageVolume.IOPS = int(payload.IOPS)
+		service.StorageVolume.Size = int(payload.Size)
 		w.WriteHeader(http.StatusOK)
 	})
 	expectRequest(func(w http.ResponseWriter, req *http.Request) {
@@ -250,6 +230,7 @@ func TestServiceResourceScaleTest(t *testing.T) {
 				  nodes          = 1
 				  size           = "sky-2x8"
 				  storage        = 100
+ 				  volume_type   = "io1"
 				  ssl_enabled    = true
 				  version        = "10.6.11-6-1"
 				  wait_for_creation = true
