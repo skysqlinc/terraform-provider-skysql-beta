@@ -183,7 +183,7 @@ func (r *ServiceResource) Schema(ctx context.Context, req resource.SchemaRequest
 			},
 			"topology": schema.StringAttribute{
 				Required:    true,
-				Description: "The topology of the service. Valid values are: masterslave, standalone, xpand-direct, columnstore, lakehouse",
+				Description: "The topology of the service. Valid values are: es-single, es-replica, xpand, csdw and sa",
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.RequiresReplace(),
 				},

@@ -189,10 +189,10 @@ func TestServiceResourceDeletionProtection(t *testing.T) {
 				Config: `
 resource "skysql_service" default {
   service_type   = "transactional"
-  topology       = "standalone"
+  topology       = "es-single"
   cloud_provider = "gcp"
   region         = "us-central1"
-  name           = "vf-test-gcp"
+  name           = "test-gcp"
   architecture   = "amd64"
   nodes          = 1
   size           = "sky-2x8"
@@ -212,10 +212,10 @@ resource "skysql_service" default {
 				Config: `
 			resource "skysql_service" default {
 			service_type   = "transactional"
-			topology       = "standalone"
+			topology       = "es-single"
 			cloud_provider = "gcp"
 			region         = "us-central1"
-			name           = "vf-test-gcp"
+			name           = "test-gcp"
 			architecture   = "amd64"
 			nodes          = 1
 			size           = "sky-2x8"
@@ -239,10 +239,10 @@ resource "skysql_service" default {
 				Config: `
 			resource "skysql_service" default {
 			service_type   = "transactional"
-			topology       = "standalone"
+			topology       = "es-single"
 			cloud_provider = "gcp"
 			region         = "us-central1"
-			name           = "vf-test-gcp"
+			name           = "test-gcp"
 			architecture   = "amd64"
 			nodes          = 1
 			size           = "sky-2x8"
@@ -266,10 +266,10 @@ resource "skysql_service" default {
 				Config: `
 			resource "skysql_service" default {
 			service_type   = "transactional"
-			topology       = "standalone"
+			topology       = "es-single"
 			cloud_provider = "gcp"
 			region         = "us-central1"
-			name           = "vf-test-gcp"
+			name           = "test-gcp"
 			architecture   = "amd64"
 			nodes          = 1
 			size           = "sky-2x8"

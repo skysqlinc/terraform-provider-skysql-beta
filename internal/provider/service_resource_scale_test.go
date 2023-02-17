@@ -222,7 +222,7 @@ func TestServiceResourceScaleTest(t *testing.T) {
 				Config: `
 			resource "skysql_service" default {
 				  service_type   = "transactional"
-				  topology       = "masterslave"
+				  topology       = "es-replica"
 				  cloud_provider = "aws"
 				  region         = "us-east-2"
 				  name           = "my-service"
@@ -247,7 +247,7 @@ func TestServiceResourceScaleTest(t *testing.T) {
 				Config: `
 			resource "skysql_service" default {
 				 service_type   = "transactional"
-				 topology       = "masterslave"
+				 topology       = "es-replica"
 				 cloud_provider = "aws"
 				 region         = "us-east-2"
 				 name           = "my-service"

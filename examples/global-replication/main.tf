@@ -1,21 +1,13 @@
-terraform {
-  required_providers {
-    skysql = {
-      source = "registry.terraform.io/mariadb-corporation/skysql-beta"
-    }
-  }
-}
-
 provider "skysql" {}
 
-# Retrieve the list of available versions for each topology like standalone, masterslave, xpand-direct etc
+# Retrieve the list of available versions for each topology like es-single, es-replica, xpand etc
 data "skysql_versions" "default" {}
 
 
 # Filter the list of versions to only include  versions for the standalone topology
 locals {
   sky_versions_filtered = [
-    for item in data.skysql_versions.default.versions : item if item.topology == "xpand-direct"
+    for item in data.skysql_versions.default.versions : item if item.topology == "xpand"
   ]
 }
 
@@ -31,7 +23,7 @@ output "skysql_projects" {
 resource "skysql_service" "primary" {
   project_id     = data.skysql_projects.default.projects[0].id
   service_type   = "transactional"
-  topology       = "xpand-direct"
+  topology       = "xpand"
   cloud_provider = "gcp"
   region         = "us-central1"
   name           = "my-primary-service"
@@ -50,7 +42,7 @@ resource "skysql_service" "primary" {
 resource "skysql_service" "replica" {
   project_id          = data.skysql_projects.default.projects[0].id
   service_type        = "transactional"
-  topology            = "xpand-direct"
+  topology            = "xpand"
   cloud_provider      = "gcp"
   region              = "us-central1"
   name                = "my-replica-service"
