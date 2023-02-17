@@ -1,10 +1,11 @@
-module github.com/mariadb-corporation/terraform-provider-skysql-beta
+module github.com/mariadb-corporation/terraform-provider-skysql
 
 go 1.19
 
 require (
 	github.com/asaskevich/govalidator v0.0.0-20210307081110-f21760c49a8d
 	github.com/go-resty/resty/v2 v2.7.0
+	github.com/google/uuid v1.3.0
 	github.com/hashicorp/terraform-plugin-docs v0.13.0
 	github.com/hashicorp/terraform-plugin-framework v1.0.1
 	github.com/hashicorp/terraform-plugin-framework-timeouts v0.3.0
@@ -12,6 +13,7 @@ require (
 	github.com/hashicorp/terraform-plugin-go v0.14.2
 	github.com/hashicorp/terraform-plugin-log v0.7.0
 	github.com/hashicorp/terraform-plugin-sdk/v2 v2.24.1
+	github.com/matryer/resync v0.0.0-20161211202428-d39c09a11215
 	github.com/stretchr/testify v1.7.2
 )
 
@@ -23,11 +25,11 @@ require (
 	github.com/apparentlymart/go-textseg/v13 v13.0.0 // indirect
 	github.com/armon/go-radix v1.0.0 // indirect
 	github.com/bgentry/speakeasy v0.1.0 // indirect
+	github.com/cheekybits/is v0.0.0-20150225183255-68e9c0620927 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/fatih/color v1.13.0 // indirect
 	github.com/golang/protobuf v1.5.2 // indirect
 	github.com/google/go-cmp v0.5.9 // indirect
-	github.com/google/uuid v1.3.0 // indirect
 	github.com/hashicorp/errwrap v1.1.0 // indirect
 	github.com/hashicorp/go-checkpoint v0.5.0 // indirect
 	github.com/hashicorp/go-cleanhttp v0.5.2 // indirect
@@ -47,7 +49,6 @@ require (
 	github.com/hashicorp/yamux v0.0.0-20181012175058-2f1d1f20f75d // indirect
 	github.com/huandu/xstrings v1.3.2 // indirect
 	github.com/imdario/mergo v0.3.13 // indirect
-	github.com/matryer/resync v0.0.0-20161211202428-d39c09a11215 // indirect
 	github.com/mattn/go-colorable v0.1.12 // indirect
 	github.com/mattn/go-isatty v0.0.14 // indirect
 	github.com/mitchellh/cli v1.1.4 // indirect
