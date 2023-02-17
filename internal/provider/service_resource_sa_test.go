@@ -166,7 +166,7 @@ func TestServiceResourceServerlessAnalytics(t *testing.T) {
 				Config: `
 			resource "skysql_service" default {
 				  service_type      = "analytical"
-				  topology          = "lakehouse"
+				  topology          = "sa"
 				  cloud_provider    = "aws"
 				  region            = "us-east-2"
 				  name              = "aws-tf-lh"
@@ -184,7 +184,7 @@ func TestServiceResourceServerlessAnalytics(t *testing.T) {
 				Config: `
 			resource "skysql_service" default {
 				  service_type      = "analytical"
-				  topology          = "lakehouse"
+				  topology          = "sa"
 				  cloud_provider    = "aws"
 				  region            = "us-east-2"
 				  name              = "serverless-analytics"
@@ -202,7 +202,7 @@ func TestServiceResourceServerlessAnalytics(t *testing.T) {
 				Config: `
 			resource "skysql_service" default {
 				  service_type      = "analytical"
-				  topology          = "lakehouse"
+				  topology          = "sa"
 				  cloud_provider    = "aws"
 				  region            = "us-east-2"
 				  name              = "aws-tf-lh"

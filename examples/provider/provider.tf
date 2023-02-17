@@ -1,11 +1,3 @@
-terraform {
-  required_providers {
-    skysql = {
-      source = "registry.terraform.io/mariadb-corporation/skysql-beta"
-    }
-  }
-}
-
 provider "skysql" {}
 
 # Retrieve the list of available versions for each topology like standalone, masterslave, xpand-direct etc
@@ -28,7 +20,7 @@ resource "skysql_service" "default" {
   topology       = "es-single"
   cloud_provider = "gcp"
   region         = "us-central1"
-  name           = "my-first-service"
+  name           = "myservice"
   architecture   = "amd64"
   nodes          = 1
   size           = "sky-2x8"

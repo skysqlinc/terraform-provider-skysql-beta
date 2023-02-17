@@ -19,7 +19,7 @@ resource "skysql_service" "default" {
   topology       = "es-single"
   cloud_provider = "aws"
   region         = "us-east-2"
-  name           = "vf-test9"
+  name           = "myservice"
   architecture   = "amd64"
   nodes          = 1
   size           = "sky-2x8"

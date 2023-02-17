@@ -16,16 +16,16 @@ Creates and manages a service in SkySQL
 resource "skysql_service" "default" {
   project_id     = data.skysql_projects.default.projects[0].id
   service_type   = "transactional"
-  topology       = "standalone"
+  topology       = "es-single"
   cloud_provider = "aws"
   region         = "us-east-1"
-  name           = "vf-test"
+  name           = "myservice"
   architecture   = "amd64"
   nodes          = 1
   size           = "sky-2x8"
   storage        = 100
   ssl_enabled    = true
-  version        = local.sky_versions_filtered[0].name
+  version        = data.skysql_versions.default.versions[0].name
   volume_type    = "gp2"
   # The service create is an asynchronous operation.
   # if you want to wait for the service to be created set wait_for_creation to true
@@ -42,7 +42,7 @@ resource "skysql_service" "default" {
 - `name` (String) The name of the service
 - `region` (String) The region to create the service in. Value should be valid for a specific cloud provider
 - `service_type` (String) The type of service to create. Valid values are: analytical or transactional
-- `topology` (String) The topology of the service. Valid values are: masterslave, standalone, xpand-direct, columnstore, lakehouse
+- `topology` (String) The topology of the service. Valid values are: es-single, es-replica, xpand, csdw and sa
 
 ### Optional
 

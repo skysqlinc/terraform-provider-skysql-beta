@@ -23,7 +23,7 @@ Use the navigation to the left to read about the available resources.
 
 ### Automated Installation (Recommended)
 
-The Terraform Provider for SkySQL **WILL BE** listed on the [Terraform Registry](https://registry.terraform.io/providers/mariadb-corporation/skysql-beta/).
+The Terraform Provider for SkySQL listed on the [Terraform Registry](https://registry.terraform.io/providers/mariadb-corporation/skysql-beta/).
 
 #### Create a Terraform configuration file
 
@@ -213,14 +213,6 @@ on darwin_arm64
 3. Create a new SkySQL service using the example below:
 
 ```terraform
-terraform {
-  required_providers {
-    skysql = {
-      source = "registry.terraform.io/mariadb-corporation/skysql-beta"
-    }
-  }
-}
-
 provider "skysql" {}
 
 # Retrieve the list of available versions for each topology like standalone, masterslave, xpand-direct etc
@@ -243,7 +235,7 @@ resource "skysql_service" "default" {
   topology       = "es-single"
   cloud_provider = "gcp"
   region         = "us-central1"
-  name           = "my-first-service"
+  name           = "myservice"
   architecture   = "amd64"
   nodes          = 1
   size           = "sky-2x8"
