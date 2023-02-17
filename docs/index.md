@@ -207,6 +207,7 @@ on darwin_arm64
 
     ```bash
         export TF_SKYSQL_API_ACCESS_TOKEN=[SKYSQL API access token]
+        export TF_SKYSQL_API_BASE_URL=https://api.mariadb.com
     ```
 
 3. Create a new SkySQL service using the example below:
