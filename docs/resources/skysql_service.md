@@ -1,5 +1,5 @@
 ---
-page_title: "skysql_service Resource - terraform-provider-skysql-beta"
+page_title: "skysql_service Resource - terraform-provider-skysql-alpha"
 subcategory: ""
 description: |-
   Creates and manages a service in SkySQL
@@ -72,6 +72,7 @@ resource "skysql_service" "default" {
 
 ### Read-Only
 
+- `fqdn` (String) The fully qualified domain name of the service. The FQDN is only available when the service is in the ready state
 - `id` (String) The ID of the service
 
 <a id="nestedatt--allow_list"></a>
