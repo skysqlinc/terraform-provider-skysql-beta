@@ -204,9 +204,9 @@ on darwin_arm64
 
 2. Set environment variables:
 
-    ```bash
-        export TF_SKYSQL_API_ACCESS_TOKEN=[SKYSQL API access token]
-    ```
+```bash
+$ export TF_SKYSQL_API_ACCESS_TOKEN=my-access-token
+```
 
 3. Create a new SkySQL service using the example below:
 
@@ -275,6 +275,47 @@ Bye
 ## Destroy the SkySQL service
 
 Run `terraform destroy` to destroy the service.
+
+## SkySQL provider configuration
+
+Configuration for the SkySQL provider can be derived from several sources,
+which are applied in the following order:
+
+1. Parameters in the provider configuration
+1. Environment variables
+
+### Provider Configuration
+
+**Warning:** Hard-coded credentials are not recommended in any Terraform
+configuration and risks secret leakage should this file ever be committed to a
+public version control system.
+
+Credentials can be provided by adding an `access_token` to the provider configuration block.
+
+Usage:
+
+```terraform
+
+provider "skysql" {
+  access_token = "my-access-token"
+}
+```
+
+### Environment Variables
+
+SkySQL Access token can be provided by using the `TF_SKYSQL_API_ACCESS_TOKEN` environment variable.
+
+For example:
+
+```terraform
+provider "skysql" {}
+```
+
+```sh
+$ export TF_SKYSQL_API_ACCESS_TOKEN="my-access-token"
+
+$ terraform plan
+```
 
 ## Secrets and Terraform state
 
