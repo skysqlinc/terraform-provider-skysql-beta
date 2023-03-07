@@ -1,5 +1,5 @@
 ---
-page_title: "skysql_versions Data Source - terraform-provider-skysql-beta"
+page_title: "skysql_versions Data Source - terraform-provider-skysql-alpha"
 subcategory: ""
 description: |-
   SkySQL server versions

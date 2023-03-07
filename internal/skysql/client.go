@@ -5,10 +5,13 @@ import (
 	"errors"
 	"github.com/go-resty/resty/v2"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/logging"
+	"github.com/mariadb-corporation/terraform-provider-skysql/internal/skysql/autonomous"
 	"github.com/mariadb-corporation/terraform-provider-skysql/internal/skysql/organization"
 	"github.com/mariadb-corporation/terraform-provider-skysql/internal/skysql/provisioning"
 	"net/http"
 	"net/url"
+	"os"
+	"path/filepath"
 	"strconv"
 )
 
@@ -19,9 +22,11 @@ type Client struct {
 func New(baseURL string, AccessToken string) *Client {
 	transport := logging.NewLoggingHTTPTransport(http.DefaultTransport)
 
+	clientName, _ := os.Executable()
+
 	return &Client{
 		HTTPClient: resty.NewWithClient(&http.Client{Transport: transport}).
-			SetHeader("User-Agent", "terraform-provider-skysql-beta").
+			SetHeader("User-Agent", filepath.Base(clientName)).
 			SetAuthScheme("Bearer").
 			SetAuthToken(AccessToken).
 			SetBaseURL(baseURL).
@@ -282,6 +287,69 @@ func (c *Client) ModifyServiceStorage(ctx context.Context, serviceID string, siz
 		SetBody(&provisioning.UpdateStorageRequest{Size: size, IOPS: iops}).
 		SetError(&ErrorResponse{}).
 		Patch("/provisioning/v1/services/" + serviceID + "/storage")
+	if err != nil {
+		return err
+	}
+	if resp.IsError() {
+		return handleError(resp)
+	}
+
+	return err
+}
+
+func (c *Client) SetAutonomousActions(
+	ctx context.Context,
+	value autonomous.SetAutonomousActionsRequest,
+) ([]autonomous.ActionResponse, error) {
+	resp, err := c.HTTPClient.R().
+		SetHeader("Accept", "application/json").
+		SetContext(ctx).
+		SetBody(value).
+		SetResult([]autonomous.ActionResponse{}).
+		SetError(&ErrorResponse{}).
+		Post("/als/v1/actions")
+	if err != nil {
+		return nil, err
+	}
+	if resp.IsError() {
+		return nil, handleError(resp)
+	}
+
+	response := *resp.Result().(*[]autonomous.ActionResponse)
+	if response == nil {
+		response = make([]autonomous.ActionResponse, 0)
+	}
+	return response, err
+}
+
+func (c *Client) GetAutonomousActions(ctx context.Context, serviceID string) ([]autonomous.ActionResponse, error) {
+	resp, err := c.HTTPClient.R().
+		SetHeader("Accept", "application/json").
+		SetContext(ctx).
+		SetResult([]autonomous.ActionResponse{}).
+		SetError(&ErrorResponse{}).
+		SetQueryParam("service_id", serviceID).
+		Get("/als/v1/actions")
+	if err != nil {
+		return nil, err
+	}
+	if resp.IsError() {
+		return nil, handleError(resp)
+	}
+
+	response := *resp.Result().(*[]autonomous.ActionResponse)
+	if response == nil {
+		response = make([]autonomous.ActionResponse, 0)
+	}
+	return response, err
+}
+
+func (c *Client) DeleteAutonomousAction(ctx context.Context, actionID string) error {
+	resp, err := c.HTTPClient.R().
+		SetHeader("Accept", "application/json").
+		SetContext(ctx).
+		SetError(&ErrorResponse{}).
+		Delete("/als/v1/actions/" + actionID)
 	if err != nil {
 		return err
 	}

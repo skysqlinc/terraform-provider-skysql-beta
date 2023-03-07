@@ -62,8 +62,6 @@ func mockSkySQLAPI(t *testing.T) (string, func(http.HandlerFunc), func()) {
 func TestServiceResource(t *testing.T) {
 	const serviceID = "dbdgf42002418"
 
-	const serviceName = "vf-test-gcp"
-
 	testUrl, expectRequest, close := mockSkySQLAPI(t)
 	defer close()
 	os.Setenv("TF_SKYSQL_API_ACCESS_TOKEN", "[token]")
