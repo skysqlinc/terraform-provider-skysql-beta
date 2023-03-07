@@ -623,15 +623,9 @@ func (r *AutonomousResource) ModifyPlan(ctx context.Context, req resource.Modify
 		return
 	}
 
-	if !plan.AutoScaleNodesHorizontalAction.IsUnknown() && !plan.AutoScaleNodesHorizontalAction.IsNull() {
-		//service, err := r.client.GetServiceByID(ctx, plan.ServiceID.ValueString())
-		//if err != nil {
-		//	resp.Diagnostics.AddError("error modifying plan", err.Error())
-		//	return
-		//}
-		//if service.Topology == "es-single" || service.Topology == "standalone" {
-		//	resp.Diagnostics.AddError("error modifying plan", "auto_scale_nodes_horizontal is not supported for es-single topology")
-		//}
+	if !plan.AutoScaleNodesHorizontalAction.IsNull() && !plan.AutoScaleNodesVerticalAction.IsNull() {
+		resp.Diagnostics.AddError("Can not set both horizontal and vertical scaling for service",
+			"Cant set both horizontal and vertical scaling for service")
+		return
 	}
-
 }

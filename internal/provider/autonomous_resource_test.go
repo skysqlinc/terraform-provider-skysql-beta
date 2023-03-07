@@ -189,13 +189,14 @@ func TestModifyAutonomousResource(t *testing.T) {
 	expectRequest(getServiceByIDSuccess(t, serviceID))
 	expectRequest(getAutonomousByServiceID(t, serviceID))
 	expectRequest(getServiceByIDSuccess(t, serviceID))
+	expectRequest(deleteActionSuccessResponse(t))
 	expectRequest(setAutonomousResponse(t))
 	expectRequest(getServiceByIDSuccess(t, serviceID))
 	expectRequest(getAutonomousByServiceID(t, serviceID))
 	expectRequest(getServiceByIDSuccess(t, serviceID))
 	expectRequest(getAutonomousByServiceID(t, serviceID))
 	expectRequest(getServiceByIDSuccess(t, serviceID))
-	for i := 0; i < 3; i++ {
+	for i := 0; i < 2; i++ {
 		expectRequest(deleteActionSuccessResponse(t))
 	}
 	expectRequest(getServiceByIDSuccess(t, serviceID))
@@ -219,10 +220,6 @@ func TestModifyAutonomousResource(t *testing.T) {
 					  max_nodes = 2
 					  min_nodes = 1
 					}
-                   auto_scale_nodes_vertical = {
-					  min_node_size = "sky-2x8"
-					  max_node_size = "sky-4x16"
-					}
 				}`, serviceID, serviceName),
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestCheckResourceAttr("skysql_autonomous.default", "id", serviceID),
@@ -237,10 +234,6 @@ func TestModifyAutonomousResource(t *testing.T) {
 			       auto_scale_disk = {
 						max_storage_size_gbs = 300
 			       }
-			       auto_scale_nodes_horizontal = {
-					  max_nodes = 3
-					  min_nodes = 1
-					}
 			      auto_scale_nodes_vertical = {
 					  min_node_size = "sky-2x8"
 					  max_node_size = "sky-4x32"
