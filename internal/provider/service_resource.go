@@ -161,9 +161,6 @@ func (r *ServiceResource) Schema(ctx context.Context, req resource.SchemaRequest
 				Optional:    true,
 				Computed:    true,
 				Description: "The software version",
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.RequiresReplace(),
-				},
 			},
 			"nodes": schema.Int64Attribute{
 				Optional:    true,
@@ -319,12 +316,9 @@ func (r *ServiceResource) Schema(ctx context.Context, req resource.SchemaRequest
 				Description: "The fully qualified domain name of the service. The FQDN is only available when the service is in the ready state",
 			},
 			"endpoint_service": schema.StringAttribute{
-				Required: false,
-				Optional: false,
-				Computed: true,
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.UseStateForUnknown(),
-				},
+				Required:    false,
+				Optional:    false,
+				Computed:    true,
 				Description: "The endpoint service name of the service, when mechanism is a privateconnect.",
 			},
 		},
@@ -679,6 +673,24 @@ func (r *ServiceResource) Update(ctx context.Context, req resource.UpdateRequest
 	if resp.Diagnostics.HasError() {
 		return
 	}
+
+	err = r.readServiceState(ctx, state)
+	if err != nil {
+		if errors.Is(err, skysql.ErrorServiceNotFound) {
+			tflog.Warn(ctx, "SkySQL service not found, removing from state", map[string]interface{}{
+				"id": state.ID.ValueString(),
+			})
+			resp.State.RemoveResource(ctx)
+
+			return
+		}
+		resp.Diagnostics.AddError("Can not read service", err.Error())
+		return
+	}
+	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
 }
 
 func (r *ServiceResource) updateServiceStorage(ctx context.Context, plan *ServiceResourceModel, state *ServiceResourceModel, resp *resource.UpdateResponse) {
@@ -777,10 +789,11 @@ func (r *ServiceResource) updateServiceEndpoints(ctx context.Context, plan *Serv
 		})
 
 		visibility := "public"
-		if plan.Mechanism.ValueString() == "privatelink" {
+		if plan.Mechanism.ValueString() == "privatelink" || plan.Mechanism.ValueString() == "privateconnect" {
 			visibility = "private"
 		} else {
 			planAllowedAccounts = []string{}
+			state.EndpointService = types.StringNull()
 		}
 
 		if planAllowedAccounts == nil {
@@ -799,6 +812,7 @@ func (r *ServiceResource) updateServiceEndpoints(ctx context.Context, plan *Serv
 
 		state.Mechanism = types.StringValue(endpoint.Mechanism)
 		state.AllowedAccounts, _ = types.ListValueFrom(ctx, types.StringType, endpoint.AllowedAccounts)
+		state.EndpointService = types.StringValue(endpoint.EndpointService)
 
 		// Save updated data into Terraform state
 		resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
