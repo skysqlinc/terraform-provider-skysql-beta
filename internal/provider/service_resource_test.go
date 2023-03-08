@@ -419,7 +419,161 @@ resource "skysql_service" default {
 				resource.TestCheckResourceAttr("skysql_service.default", "id", serviceID),
 			},
 		},
+		{
+			name: "fail when service has the privateconnect mechanism and allowlist is not empty",
+			testResource: `
+resource "skysql_service" "default" {
+  service_type      = "transactional"
+  topology          = "es-single"
+  cloud_provider    = "gcp"
+  region            = "europe-west4"
+  name              = "test-service"
+  nodes             = 1
+  size              = "sky-2x8"
+  storage           = 100
+  endpoint_mechanism = "privateconnect"
+  ssl_enabled       = true
+  architecture      = "amd64"
+  wait_for_creation = true
+  wait_for_deletion = true
+  wait_for_update   = true
+  deletion_protection = false
+  allow_list = [
+    {
+      ip : "10.100.0.0/16"
+    }
+  ]
+}`,
+			before: func(r *require.Assertions) {},
+			checks: []resource.TestCheckFunc{
+				resource.TestCheckResourceAttr("skysql_service.default", "id", ""),
+			},
+			expectError: regexp.MustCompile(" You can not set allow_list when mechanism has"),
+		},
+		{
+			name: "create service when version is not specified",
+			testResource: `
+resource "skysql_service" default {
+  service_type   = "transactional"
+  topology       = "es-single"
+  cloud_provider = "gcp"
+  region         = "us-central1"
+  name           = "test-gcp"
+  architecture   = "amd64"
+  nodes          = 1
+  size           = "sky-2x8"
+  storage        = 100
+  ssl_enabled    = true
+  wait_for_creation = true
+  wait_for_deletion = true
+  deletion_protection = false
+}
+	            `,
+			before: func(r *require.Assertions) {
+				configureOnce.Reset()
+				var service *provisioning.Service
+				expectRequest(func(w http.ResponseWriter, req *http.Request) {
+					r.Equal(http.MethodGet, req.Method)
+					r.Equal("/provisioning/v1/versions", req.URL.Path)
+					r.Equal("page_size=1", req.URL.RawQuery)
+					w.Header().Set("Content-Type", "application/json")
+					w.WriteHeader(http.StatusOK)
+					json.NewEncoder(w).Encode([]provisioning.Version{})
+				})
+				expectRequest(func(w http.ResponseWriter, req *http.Request) {
+					r.Equal(http.MethodPost, req.Method)
+					r.Equal("/provisioning/v1/services", req.URL.Path)
+					w.Header().Set("Content-Type", "application/json")
+					payload := provisioning.CreateServiceRequest{}
+					err := json.NewDecoder(req.Body).Decode(&payload)
+					r.NoError(err)
+					service = &provisioning.Service{
+						ID:           serviceID,
+						Name:         payload.Name,
+						Region:       payload.Region,
+						Provider:     payload.Provider,
+						Tier:         "foundation",
+						Topology:     payload.Topology,
+						Version:      payload.Version,
+						Architecture: payload.Architecture,
+						Size:         payload.Size,
+						Nodes:        int(payload.Nodes),
+						SSLEnabled:   payload.SSLEnabled,
+						NosqlEnabled: payload.NoSQLEnabled,
+						FQDN:         "",
+						Status:       "pending_create",
+						CreatedOn:    int(time.Now().Unix()),
+						UpdatedOn:    int(time.Now().Unix()),
+						CreatedBy:    uuid.New().String(),
+						UpdatedBy:    uuid.New().String(),
+						Endpoints: []provisioning.Endpoint{
+							{
+								Name: "primary",
+								Ports: []provisioning.Port{
+									{
+										Name:    "readwrite",
+										Port:    3306,
+										Purpose: "readwrite",
+									},
+								},
+								AllowList: []provisioning.AllowListItem{
+									{
+										IPAddress: "127.0.0.1/32",
+										Comment:   "",
+									},
+								},
+							},
+						},
+						StorageVolume: struct {
+							Size       int    `json:"size"`
+							VolumeType string `json:"volume_type"`
+							IOPS       int    `json:"iops"`
+						}{
+							Size:       int(payload.Storage),
+							VolumeType: payload.VolumeType,
+							IOPS:       int(payload.VolumeIOPS),
+						},
+						OutboundIps:        nil,
+						IsActive:           true,
+						ServiceType:        payload.ServiceType,
+						ReplicationEnabled: false,
+						PrimaryHost:        "",
+					}
+					json.NewEncoder(w).Encode(service)
+					w.WriteHeader(http.StatusCreated)
+				})
+				for i := 0; i < 3; i++ {
+					expectRequest(func(w http.ResponseWriter, req *http.Request) {
+						r.Equal(http.MethodGet, req.Method)
+						r.Equal("/provisioning/v1/services/"+serviceID, req.URL.Path)
+						w.Header().Set("Content-Type", "application/json")
+						service.Status = "ready"
+						json.NewEncoder(w).Encode(service)
+						w.WriteHeader(http.StatusOK)
+					})
+				}
+				expectRequest(func(w http.ResponseWriter, req *http.Request) {
+					r.Equal(http.MethodDelete, req.Method)
+					r.Equal("/provisioning/v1/services/"+serviceID, req.URL.Path)
+					w.WriteHeader(http.StatusAccepted)
+					w.Header().Set("Content-Type", "application/json")
+				})
+				expectRequest(func(w http.ResponseWriter, req *http.Request) {
+					r.Equal(http.MethodGet, req.Method)
+					r.Equal("/provisioning/v1/services/"+serviceID, req.URL.Path)
+					w.Header().Set("Content-Type", "application/json")
+					w.WriteHeader(http.StatusNotFound)
+					json.NewEncoder(w).Encode(&skysql.ErrorResponse{
+						Code: http.StatusNotFound,
+					})
+				})
+			},
+			checks: []resource.TestCheckFunc{
+				resource.TestCheckResourceAttr("skysql_service.default", "id", serviceID),
+			},
+		},
 	}
+
 	for _, test := range tests {
 		{
 			t.Run(test.name, func(t *testing.T) {
