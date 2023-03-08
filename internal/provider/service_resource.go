@@ -163,6 +163,9 @@ func (r *ServiceResource) Schema(ctx context.Context, req resource.SchemaRequest
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.RequiresReplace(),
 				},
+				Validators: []validator.String{
+					stringvalidator.AnyWithAllWarnings(),
+				},
 			},
 			"nodes": schema.Int64Attribute{
 				Optional:    true,
@@ -224,7 +227,7 @@ func (r *ServiceResource) Schema(ctx context.Context, req resource.SchemaRequest
 			"endpoint_mechanism": schema.StringAttribute{
 				Optional:    true,
 				Computed:    true,
-				Description: "The endpoint mechanism to use. Valid values are: privatelink or nlb",
+				Description: "The endpoint mechanism to use. Valid values are: privateconnect or nlb",
 			},
 			"endpoint_allowed_accounts": schema.ListAttribute{
 				Optional:    true,
@@ -1046,12 +1049,6 @@ func (r *ServiceResource) ValidateConfig(ctx context.Context, req resource.Valid
 				fmt.Sprintf("The argument %q is required, but no definition was found.", "size"))
 			return
 		}
-		if config.Version.IsNull() {
-			resp.Diagnostics.AddAttributeError(path.Root("version"),
-				"Missing required argument",
-				fmt.Sprintf("The argument %q is required, but no definition was found.", "version"))
-			return
-		}
 	} else {
 		if !config.Architecture.IsUnknown() && !config.Architecture.IsNull() {
 			resp.Diagnostics.AddAttributeError(path.Root("architecture"),
@@ -1081,5 +1078,11 @@ func (r *ServiceResource) ValidateConfig(ctx context.Context, req resource.Valid
 				"Attempt to modify read-only attribute",
 				fmt.Sprintf("The argument %q is read only for the %q topology", "version", config.Topology.ValueString()))
 		}
+	}
+
+	if Contains[string]([]string{"privatelink", "privateconnect"}, config.Mechanism.ValueString()) && !config.AllowList.IsNull() {
+		resp.Diagnostics.AddAttributeError(path.Root("allow_list"),
+			fmt.Sprintf("You can not set allow_list when mechanism has %q value", config.Mechanism.ValueString()),
+			fmt.Sprintf("When you set mechanism=%q, don't use allow_list, use endpoint_allowed_accounts instead", config.Mechanism.ValueString()))
 	}
 }
