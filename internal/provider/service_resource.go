@@ -78,6 +78,7 @@ type ServiceResourceModel struct {
 	Timeouts           timeouts.Value `tfsdk:"timeouts"`
 	Mechanism          types.String   `tfsdk:"endpoint_mechanism"`
 	AllowedAccounts    types.List     `tfsdk:"endpoint_allowed_accounts"`
+	EndpointService    types.String   `tfsdk:"endpoint_service"`
 	WaitForDeletion    types.Bool     `tfsdk:"wait_for_deletion"`
 	ReplicationEnabled types.Bool     `tfsdk:"replication_enabled"`
 	PrimaryHost        types.String   `tfsdk:"primary_host"`
@@ -317,6 +318,15 @@ func (r *ServiceResource) Schema(ctx context.Context, req resource.SchemaRequest
 				},
 				Description: "The fully qualified domain name of the service. The FQDN is only available when the service is in the ready state",
 			},
+			"endpoint_service": schema.StringAttribute{
+				Required: false,
+				Optional: false,
+				Computed: true,
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
+				Description: "The endpoint service name of the service, when mechanism is a privateconnect.",
+			},
 		},
 		Blocks: map[string]schema.Block{
 			"timeouts": timeouts.Block(ctx, timeouts.Opts{
@@ -450,6 +460,7 @@ func (r *ServiceResource) Create(ctx context.Context, req resource.CreateRequest
 		data.Mechanism = types.StringValue(service.Endpoints[0].Mechanism)
 		data.AllowedAccounts, _ = types.ListValueFrom(ctx, types.StringType, service.Endpoints[0].AllowedAccounts)
 		data.AllowList, _ = r.allowListToListType(ctx, service.Endpoints[0].AllowList)
+		data.EndpointService = types.StringValue(service.Endpoints[0].EndpointService)
 	}
 	if !(data.MaxscaleSize.IsUnknown() || data.MaxscaleSize.IsNull()) && service.MaxscaleSize != nil {
 		data.MaxscaleSize = types.StringValue(*service.MaxscaleSize)
@@ -583,6 +594,7 @@ func (r *ServiceResource) readServiceState(ctx context.Context, data *ServiceRes
 		data.Mechanism = types.StringValue(service.Endpoints[0].Mechanism)
 		data.AllowedAccounts, _ = types.ListValueFrom(ctx, types.StringType, service.Endpoints[0].AllowedAccounts)
 		data.AllowList, _ = r.allowListToListType(ctx, service.Endpoints[0].AllowList)
+		data.EndpointService = types.StringValue(service.Endpoints[0].EndpointService)
 	}
 	if !(data.MaxscaleSize.IsUnknown() || data.MaxscaleSize.IsNull()) && service.MaxscaleSize != nil {
 		data.MaxscaleSize = types.StringValue(*service.MaxscaleSize)
