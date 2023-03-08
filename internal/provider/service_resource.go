@@ -78,6 +78,7 @@ type ServiceResourceModel struct {
 	Timeouts           timeouts.Value `tfsdk:"timeouts"`
 	Mechanism          types.String   `tfsdk:"endpoint_mechanism"`
 	AllowedAccounts    types.List     `tfsdk:"endpoint_allowed_accounts"`
+	EndpointService    types.String   `tfsdk:"endpoint_service"`
 	WaitForDeletion    types.Bool     `tfsdk:"wait_for_deletion"`
 	ReplicationEnabled types.Bool     `tfsdk:"replication_enabled"`
 	PrimaryHost        types.String   `tfsdk:"primary_host"`
@@ -160,9 +161,6 @@ func (r *ServiceResource) Schema(ctx context.Context, req resource.SchemaRequest
 				Optional:    true,
 				Computed:    true,
 				Description: "The software version",
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.RequiresReplace(),
-				},
 			},
 			"nodes": schema.Int64Attribute{
 				Optional:    true,
@@ -317,6 +315,12 @@ func (r *ServiceResource) Schema(ctx context.Context, req resource.SchemaRequest
 				},
 				Description: "The fully qualified domain name of the service. The FQDN is only available when the service is in the ready state",
 			},
+			"endpoint_service": schema.StringAttribute{
+				Required:    false,
+				Optional:    false,
+				Computed:    true,
+				Description: "The endpoint service name of the service, when mechanism is a privateconnect.",
+			},
 		},
 		Blocks: map[string]schema.Block{
 			"timeouts": timeouts.Block(ctx, timeouts.Opts{
@@ -450,6 +454,7 @@ func (r *ServiceResource) Create(ctx context.Context, req resource.CreateRequest
 		data.Mechanism = types.StringValue(service.Endpoints[0].Mechanism)
 		data.AllowedAccounts, _ = types.ListValueFrom(ctx, types.StringType, service.Endpoints[0].AllowedAccounts)
 		data.AllowList, _ = r.allowListToListType(ctx, service.Endpoints[0].AllowList)
+		data.EndpointService = types.StringValue(service.Endpoints[0].EndpointService)
 	}
 	if !(data.MaxscaleSize.IsUnknown() || data.MaxscaleSize.IsNull()) && service.MaxscaleSize != nil {
 		data.MaxscaleSize = types.StringValue(*service.MaxscaleSize)
@@ -583,6 +588,7 @@ func (r *ServiceResource) readServiceState(ctx context.Context, data *ServiceRes
 		data.Mechanism = types.StringValue(service.Endpoints[0].Mechanism)
 		data.AllowedAccounts, _ = types.ListValueFrom(ctx, types.StringType, service.Endpoints[0].AllowedAccounts)
 		data.AllowList, _ = r.allowListToListType(ctx, service.Endpoints[0].AllowList)
+		data.EndpointService = types.StringValue(service.Endpoints[0].EndpointService)
 	}
 	if !(data.MaxscaleSize.IsUnknown() || data.MaxscaleSize.IsNull()) && service.MaxscaleSize != nil {
 		data.MaxscaleSize = types.StringValue(*service.MaxscaleSize)
@@ -664,6 +670,24 @@ func (r *ServiceResource) Update(ctx context.Context, req resource.UpdateRequest
 	}
 
 	r.updateAllowList(ctx, plan, state, resp)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	err = r.readServiceState(ctx, state)
+	if err != nil {
+		if errors.Is(err, skysql.ErrorServiceNotFound) {
+			tflog.Warn(ctx, "SkySQL service not found, removing from state", map[string]interface{}{
+				"id": state.ID.ValueString(),
+			})
+			resp.State.RemoveResource(ctx)
+
+			return
+		}
+		resp.Diagnostics.AddError("Can not read service", err.Error())
+		return
+	}
+	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
@@ -765,10 +789,11 @@ func (r *ServiceResource) updateServiceEndpoints(ctx context.Context, plan *Serv
 		})
 
 		visibility := "public"
-		if plan.Mechanism.ValueString() == "privatelink" {
+		if plan.Mechanism.ValueString() == "privatelink" || plan.Mechanism.ValueString() == "privateconnect" {
 			visibility = "private"
 		} else {
 			planAllowedAccounts = []string{}
+			state.EndpointService = types.StringNull()
 		}
 
 		if planAllowedAccounts == nil {
@@ -787,6 +812,7 @@ func (r *ServiceResource) updateServiceEndpoints(ctx context.Context, plan *Serv
 
 		state.Mechanism = types.StringValue(endpoint.Mechanism)
 		state.AllowedAccounts, _ = types.ListValueFrom(ctx, types.StringType, endpoint.AllowedAccounts)
+		state.EndpointService = types.StringValue(endpoint.EndpointService)
 
 		// Save updated data into Terraform state
 		resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)

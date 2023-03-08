@@ -116,6 +116,7 @@ func TestServiceResourcePrivateLink(t *testing.T) {
 		service.Endpoints[0].Mechanism = "privatelink"
 		service.Endpoints[0].AllowedAccounts = []string{"mdb-cnewport"}
 		service.Endpoints[0].Visibility = "private"
+		service.Endpoints[0].EndpointService = "privatelink.mariadb.com"
 		json.NewEncoder(w).Encode(&provisioning.PatchServiceEndpointsResponse{
 			{
 				Mechanism:       service.Endpoints[0].Mechanism,
@@ -125,7 +126,7 @@ func TestServiceResourcePrivateLink(t *testing.T) {
 		})
 		w.WriteHeader(http.StatusOK)
 	})
-	for i := 0; i < 4; i++ {
+	for i := 0; i < 5; i++ {
 		// Get service status
 		expectRequest(func(w http.ResponseWriter, req *http.Request) {
 			r.Equal(http.MethodGet, req.Method)
@@ -143,7 +144,7 @@ func TestServiceResourcePrivateLink(t *testing.T) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 	})
-	for i := 0; i < 4; i++ {
+	for i := 0; i < 5; i++ {
 		// Get service status
 		expectRequest(func(w http.ResponseWriter, req *http.Request) {
 			r.Equal(
@@ -177,7 +178,7 @@ func TestServiceResourcePrivateLink(t *testing.T) {
 		w.WriteHeader(http.StatusOK)
 	})
 
-	for i := 0; i < 2; i++ {
+	for i := 0; i < 3; i++ {
 		// Get service status
 		expectRequest(func(w http.ResponseWriter, req *http.Request) {
 			r.Equal(

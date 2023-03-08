@@ -170,16 +170,19 @@ func TestServiceResourceAllowlistUpdate(t *testing.T) {
 		json.NewEncoder(w).Encode(&service)
 		w.WriteHeader(http.StatusOK)
 	})
-	expectRequest(func(w http.ResponseWriter, req *http.Request) {
-		r.Equal(
-			fmt.Sprintf("%s %s/%s", http.MethodGet, "/provisioning/v1/services", serviceID),
-			fmt.Sprintf("%s %s", req.Method, req.URL.Path))
-		w.Header().Set("Content-Type", "application/json")
-		service.Status = "ready"
-		service.Endpoints[0].AllowList = []provisioning.AllowListItem{}
-		json.NewEncoder(w).Encode(&service)
-		w.WriteHeader(http.StatusOK)
-	})
+
+	for i := 0; i < 2; i++ {
+		expectRequest(func(w http.ResponseWriter, req *http.Request) {
+			r.Equal(
+				fmt.Sprintf("%s %s/%s", http.MethodGet, "/provisioning/v1/services", serviceID),
+				fmt.Sprintf("%s %s", req.Method, req.URL.Path))
+			w.Header().Set("Content-Type", "application/json")
+			service.Status = "ready"
+			service.Endpoints[0].AllowList = []provisioning.AllowListItem{}
+			json.NewEncoder(w).Encode(&service)
+			w.WriteHeader(http.StatusOK)
+		})
+	}
 
 	expectRequest(func(w http.ResponseWriter, req *http.Request) {
 		r.Equal(

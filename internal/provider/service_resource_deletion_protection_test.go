@@ -126,7 +126,7 @@ func TestServiceResourceDeletionProtection(t *testing.T) {
 		})
 		w.WriteHeader(http.StatusOK)
 	})
-	for i := 0; i < 4; i++ {
+	for i := 0; i < 5; i++ {
 		// Get service status
 		expectRequest(func(w http.ResponseWriter, req *http.Request) {
 			r.Equal(http.MethodGet, req.Method)
@@ -145,7 +145,7 @@ func TestServiceResourceDeletionProtection(t *testing.T) {
 		w.WriteHeader(http.StatusOK)
 	})
 
-	for i := 0; i < 5; i++ {
+	for i := 0; i < 7; i++ {
 		expectRequest(func(w http.ResponseWriter, req *http.Request) {
 			r.Equal(
 				fmt.Sprintf("%s %s/%s", http.MethodGet, "/provisioning/v1/services", serviceID),
