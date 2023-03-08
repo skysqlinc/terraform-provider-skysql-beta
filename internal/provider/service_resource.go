@@ -163,9 +163,6 @@ func (r *ServiceResource) Schema(ctx context.Context, req resource.SchemaRequest
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.RequiresReplace(),
 				},
-				Validators: []validator.String{
-					stringvalidator.AnyWithAllWarnings(),
-				},
 			},
 			"nodes": schema.Int64Attribute{
 				Optional:    true,
