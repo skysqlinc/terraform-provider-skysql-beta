@@ -359,3 +359,24 @@ func (c *Client) DeleteAutonomousAction(ctx context.Context, actionID string) er
 
 	return err
 }
+
+func (c *Client) GetAvailabilityZones(ctx context.Context, region string, options ...func(url.Values)) ([]provisioning.AvailabilityZone, error) {
+	request := c.HTTPClient.R()
+	for _, option := range options {
+		option(request.QueryParam)
+	}
+	resp, err := request.
+		SetHeader("Accept", "application/json").
+		SetResult([]provisioning.AvailabilityZone{}).
+		SetError(&ErrorResponse{}).
+		SetContext(ctx).
+		Get("/provisioning/v1/regions/" + region + "/zones")
+	if err != nil {
+		return nil, err
+	}
+
+	if resp.IsError() {
+		return nil, handleError(resp)
+	}
+	return *resp.Result().(*[]provisioning.AvailabilityZone), err
+}

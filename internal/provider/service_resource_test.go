@@ -2,12 +2,14 @@ package provider
 
 import (
 	"encoding/json"
+	"fmt"
 	"github.com/google/uuid"
 	"github.com/hashicorp/terraform-plugin-framework/providerserver"
 	"github.com/hashicorp/terraform-plugin-go/tfprotov6"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
 	"github.com/mariadb-corporation/terraform-provider-skysql/internal/skysql"
 	"github.com/mariadb-corporation/terraform-provider-skysql/internal/skysql/provisioning"
+	"github.com/pioz/faker"
 	"github.com/stretchr/testify/require"
 	"log"
 	"net/http"
@@ -15,6 +17,7 @@ import (
 	"net/http/httputil"
 	"os"
 	"regexp"
+	"strings"
 	"testing"
 	"time"
 )
@@ -138,12 +141,6 @@ resource "skysql_service" default {
 										Name:    "readwrite",
 										Port:    3306,
 										Purpose: "readwrite",
-									},
-								},
-								AllowList: []provisioning.AllowListItem{
-									{
-										IPAddress: "127.0.0.1/32",
-										Comment:   "",
 									},
 								},
 							},
@@ -516,12 +513,6 @@ resource "skysql_service" default {
 										Purpose: "readwrite",
 									},
 								},
-								AllowList: []provisioning.AllowListItem{
-									{
-										IPAddress: "127.0.0.1/32",
-										Comment:   "",
-									},
-								},
 							},
 						},
 						StorageVolume: struct {
@@ -571,6 +562,73 @@ resource "skysql_service" default {
 			checks: []resource.TestCheckFunc{
 				resource.TestCheckResourceAttr("skysql_service.default", "id", serviceID),
 			},
+		},
+		{
+			name: "create service when unexpected provider value",
+			testResource: fmt.Sprintf(`
+		resource "skysql_service" default {
+		 service_type   = "transactional"
+		 topology       = "es-single"
+		 cloud_provider = "boom!"
+		 region         = "us-central1"
+		 name           = "%s"
+		 architecture   = "amd64"
+		 nodes          = 1
+		 size           = "sky-2x8"
+		 storage        = 100
+		 ssl_enabled    = true
+		 version        = "10.6.11-6-1"
+		 wait_for_creation = true
+		 wait_for_deletion = true
+		 deletion_protection = false
+		}
+			            `, strings.ToLower(faker.FirstName()+faker.StringWithSize(3))),
+			before: func(r *require.Assertions) {
+				configureOnce.Reset()
+				expectRequest(func(w http.ResponseWriter, req *http.Request) {
+					r.Equal(http.MethodGet, req.Method)
+					r.Equal("/provisioning/v1/versions", req.URL.Path)
+					r.Equal("page_size=1", req.URL.RawQuery)
+					w.Header().Set("Content-Type", "application/json")
+					json.NewEncoder(w).Encode([]provisioning.Version{})
+					w.WriteHeader(http.StatusOK)
+				})
+			},
+			expectError: regexp.MustCompile(`Invalid provider value`),
+		},
+		{
+			name: "create service when unexpected volume_type is not set for valume_iops",
+			testResource: fmt.Sprintf(`
+		resource "skysql_service" default {
+		 service_type   = "transactional"
+		 topology       = "es-single"
+		 cloud_provider = "aws"
+		 region         = "us-central1"
+		 name           = "%s"
+		 architecture   = "amd64"
+         volume_iops     = 100
+		 nodes          = 1
+		 size           = "sky-2x8"
+		 storage        = 100
+		 ssl_enabled    = true
+		 version        = "10.6.11-6-1"
+		 wait_for_creation = true
+		 wait_for_deletion = true
+		 deletion_protection = false
+		}
+			            `, strings.ToLower(faker.FirstName()+faker.StringWithSize(3))),
+			before: func(r *require.Assertions) {
+				configureOnce.Reset()
+				expectRequest(func(w http.ResponseWriter, req *http.Request) {
+					r.Equal(http.MethodGet, req.Method)
+					r.Equal("/provisioning/v1/versions", req.URL.Path)
+					r.Equal("page_size=1", req.URL.RawQuery)
+					w.Header().Set("Content-Type", "application/json")
+					json.NewEncoder(w).Encode([]provisioning.Version{})
+					w.WriteHeader(http.StatusOK)
+				})
+			},
+			expectError: regexp.MustCompile(`volume_type is require`),
 		},
 	}
 

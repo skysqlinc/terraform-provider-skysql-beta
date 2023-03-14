@@ -146,6 +146,7 @@ func (p *skySQLProvider) DataSources(ctx context.Context) []func() datasource.Da
 		NewVersionsDataSource,
 		NewServiceDataSource,
 		NewCredentialsDataSource,
+		NewAvailabilityZonesDataSource,
 	}
 }
 
