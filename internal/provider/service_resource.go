@@ -93,6 +93,7 @@ type ServiceResourceModel struct {
 	MaxscaleNodes      types.Int64    `tfsdk:"maxscale_nodes"`
 	MaxscaleSize       types.String   `tfsdk:"maxscale_size"`
 	FQDN               types.String   `tfsdk:"fqdn"`
+	AvailabilityZone   types.String   `tfsdk:"availability_zone"`
 }
 
 // ServiceResourceNamedPortModel is an endpoint port
@@ -368,6 +369,16 @@ func (r *ServiceResource) Schema(ctx context.Context, req resource.SchemaRequest
 				Computed:    true,
 				Description: "The endpoint service name of the service, when mechanism is a privateconnect.",
 			},
+			"availability_zone": schema.StringAttribute{
+				Required:    false,
+				Optional:    true,
+				Computed:    true,
+				Description: "The availability zone of the service",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+					stringplanmodifier.RequiresReplace(),
+				},
+			},
 		},
 		Blocks: map[string]schema.Block{
 			"timeouts": timeouts.Block(ctx, timeouts.Opts{
@@ -429,6 +440,7 @@ func (r *ServiceResource) Create(ctx context.Context, req resource.CreateRequest
 		ReplicationEnabled: state.ReplicationEnabled.ValueBool(),
 		PrimaryHost:        state.PrimaryHost.ValueString(),
 		MaxscaleNodes:      uint(state.MaxscaleNodes.ValueInt64()),
+		AvailabilityZone:   state.AvailabilityZone.ValueString(),
 	}
 
 	if !state.MaxscaleSize.IsUnknown() && !state.MaxscaleSize.IsNull() && len(state.MaxscaleSize.ValueString()) > 0 {
@@ -499,6 +511,7 @@ func (r *ServiceResource) Create(ctx context.Context, req resource.CreateRequest
 	state.Version = types.StringValue(service.Version)
 	state.Storage = types.Int64Value(int64(service.StorageVolume.Size))
 	state.SSLEnabled = types.BoolValue(service.SSLEnabled)
+	state.AvailabilityZone = types.StringValue(service.AvailabilityZone)
 	if len(service.Endpoints) > 0 {
 		state.Mechanism = types.StringValue(service.Endpoints[0].Mechanism)
 		r.setAllowAccounts(ctx, state, service.Endpoints[0].AllowedAccounts)
@@ -635,6 +648,7 @@ func (r *ServiceResource) readServiceState(ctx context.Context, data *ServiceRes
 	data.Size = types.StringValue(service.Size)
 	data.Topology = types.StringValue(service.Topology)
 	data.Storage = types.Int64Value(int64(service.StorageVolume.Size))
+	data.AvailabilityZone = types.StringValue(service.AvailabilityZone)
 	if !data.VolumeIOPS.IsNull() && service.StorageVolume.IOPS > 0 {
 		data.VolumeIOPS = types.Int64Value(int64(service.StorageVolume.IOPS))
 	} else {
