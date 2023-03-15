@@ -245,6 +245,7 @@ func (r *ServiceResource) Schema(ctx context.Context, req resource.SchemaRequest
 			},
 			"wait_for_creation": schema.BoolAttribute{
 				Optional:    true,
+				Computed:    true,
 				Description: "Whether to wait for the service to be created. Valid values are: true or false",
 				PlanModifiers: []planmodifier.Bool{
 					boolDefault(true),
@@ -266,6 +267,7 @@ func (r *ServiceResource) Schema(ctx context.Context, req resource.SchemaRequest
 			},
 			"wait_for_deletion": schema.BoolAttribute{
 				Optional:    true,
+				Computed:    true,
 				Description: "Whether to wait for the service to be deleted. Valid values are: true or false",
 				PlanModifiers: []planmodifier.Bool{
 					boolDefault(true),
