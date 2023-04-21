@@ -9,38 +9,23 @@ data "google_project" "this" {}
 ###
 data "archive_file" "this" {
   type        = "zip"
-  source_dir = var.source_dir
+  source_dir  = var.source_dir
   output_path = local.archive_file
-  excludes = [local.archive_file]
+  excludes    = [local.archive_file]
 }
 
 resource "google_storage_bucket" "this" {
-  count = var.gcs_bucket == "" ? 1 : 0
+  count    = var.gcs_bucket == "" ? 1 : 0
   name     = local.bucket_name
   location = var.gcs_bucket_location
 }
 
 resource "google_storage_bucket_object" "this" {
-  name   = local.gcs_object_name
-  bucket = local.bucket_name
-  source = data.archive_file.this.output_path
+  name       = local.gcs_object_name
+  bucket     = local.bucket_name
+  source     = data.archive_file.this.output_path
   depends_on = [google_storage_bucket.this]
 }
-
-###
-# Set up secrets access for the function
-###
-resource "google_service_account" "secrets_access" {
-  account_id   = local.secrets_sa
-  display_name = "SkySQL Query Secrets Access"
-}
-
-resource "google_project_iam_member" "secrets_access" {
-  project = var.project_id
-  role    = "roles/secretmanager.secretAccessor"
-  member  = "serviceAccount:${google_service_account.secrets_access.email}"
-}
-
 
 ###
 # Create the cloud function
@@ -58,7 +43,7 @@ resource "google_cloudfunctions_function" "this" {
   https_trigger_security_level = "SECURE_ALWAYS"
   timeout                      = 60
   vpc_connector                = var.vpc_connector
-  service_account_email        = google_service_account.secrets_access.email
+  service_account_email        = var.service_account
   entry_point                  = "create_db" # TODO
 
   environment_variables = {
@@ -67,10 +52,10 @@ resource "google_cloudfunctions_function" "this" {
   }
 
   secret_environment_variables {
-    key = "DB_PASSWORD"
+    key        = "DB_PASSWORD"
     project_id = data.google_project.this.number
-    secret = var.db_password_secret
-    version = "latest"
+    secret     = var.db_password_secret
+    version    = "latest"
   }
 }
 
@@ -104,11 +89,11 @@ data "google_service_account_jwt" "invoker" {
   target_service_account = google_service_account.invoker.email
 
   payload = jsonencode({
-    target_audience: google_cloudfunctions_function.this.https_trigger_url,
-    sub: google_service_account.invoker.email,
-    iss: google_service_account.invoker.email,
-    iat: time_static.timestamp.unix,
-    aud: "https://www.googleapis.com/oauth2/v4/token",
+    target_audience : google_cloudfunctions_function.this.https_trigger_url,
+    sub : google_service_account.invoker.email,
+    iss : google_service_account.invoker.email,
+    iat : time_static.timestamp.unix,
+    aud : "https://www.googleapis.com/oauth2/v4/token",
   })
 
   expires_in = 300
@@ -118,12 +103,12 @@ data "google_service_account_jwt" "invoker" {
 data "http" "sign_jwt" {
   url = "https://www.googleapis.com/oauth2/v4/token"
   request_headers = {
-    Content-Type = "application/x-www-form-urlencoded"
+    Content-Type  = "application/x-www-form-urlencoded"
     Authorization = "Bearer ${data.google_service_account_jwt.invoker.jwt}"
   }
-  method = "POST"
+  method       = "POST"
   request_body = "grant_type=urn:ietf:params:oauth:grant-type:jwt-bearer&assertion=${data.google_service_account_jwt.invoker.jwt}"
-  depends_on = [google_cloudfunctions_function_iam_member.this]
+  depends_on   = [google_cloudfunctions_function_iam_member.this]
 }
 
 ###
@@ -131,8 +116,8 @@ data "http" "sign_jwt" {
 ###
 resource "time_sleep" "wait_for_iam" {
   # this is unfortunate but it takes a minute for the IAM policy to propagate
-  create_duration = "60s"
-  depends_on = [data.http.sign_jwt]
+  create_duration = "75s"
+  depends_on      = [data.http.sign_jwt]
 }
 data "http" "trigger" {
   url = google_cloudfunctions_function.this.https_trigger_url

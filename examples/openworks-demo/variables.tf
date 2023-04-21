@@ -37,3 +37,9 @@ variable "link_dns" {
   type        = bool
   default     = true
 }
+
+variable "application_name" {
+  description = "Name of the Cloud Run application to be deployed"
+  type        = string
+  default     = "openworks-wordpress-demo"
+}

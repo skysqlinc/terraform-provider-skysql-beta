@@ -1,4 +1,3 @@
-# type: ignore
 import os
 import sqlalchemy
 
@@ -7,11 +6,10 @@ db_user = os.environ.get('DB_USER')
 db_password = os.environ.get('DB_PASSWORD')
 
 # If your database is MySQL, uncomment the following two lines:
-driver_name = 'mysql+pymysql'
-
 def create_db(request):
     request_json = request.get_json()
 
+    driver_name = 'mysql+pymysql'
     stmt = sqlalchemy.text('CREATE DATABASE IF NOT EXISTS wordpress')
 
     db = sqlalchemy.create_engine(

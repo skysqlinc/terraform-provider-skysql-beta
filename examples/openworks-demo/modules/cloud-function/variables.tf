@@ -50,3 +50,8 @@ variable "db_password_secret" {
   description = "The name of the secret containing the password to connect to the database."
   type        = string
 }
+
+variable "service_account" {
+  description = "The service account to run the function as."
+  type        = string
+}

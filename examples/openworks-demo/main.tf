@@ -34,12 +34,6 @@ data "skysql_credentials" "this" {
   service_id = skysql_service.this.id
 }
 
-locals {
-  # this should work for all topologies other than lakehouse
-  readwrite_port = [for p in data.skysql_service.this.endpoints[0].ports : p.port if p.purpose == "readwrite"][0]
-  skysql_domain  = "dev2.skysql.mariadb.net"
-}
-
 
 ###
 # Creates the private address and forwarding rule for the PSC endpoint
@@ -93,10 +87,43 @@ resource "google_dns_record_set" "this" {
   rrdatas      = [google_compute_address.this.address]
 }
 
+###
+# Store the skysql credentials in secret manager
+###
+resource "google_secret_manager_secret" "this" {
+  secret_id = local.secret_name
+  replication {
+    automatic = true
+  }
+}
+
+resource "google_secret_manager_secret_version" "this" {
+  secret      = google_secret_manager_secret.this.id
+  secret_data = data.skysql_credentials.this.password
+}
+
+###
+# Create a service account that our application will use to read the secret
+###
+resource "google_service_account" "secrets_access" {
+  account_id   = local.secrets_sa
+  display_name = "SkySQL Query Secrets Access"
+}
+
+resource "google_project_iam_member" "secrets_access" {
+  project = var.project_id
+  role    = "roles/secretmanager.secretAccessor"
+  member  = "serviceAccount:${google_service_account.secrets_access.email}"
+}
+
+
+###
+# Install wordpress on cloud run
+###
 module "cloud_run" {
   source     = "github.com/GoogleCloudPlatform/cloud-foundation-fabric//modules/cloud-run?ref=v20.0.0"
   project_id = var.project_id
-  name       = "openworks-wordpress-demo"
+  name       = var.application_name
   region     = var.region
 
   containers = [{
@@ -107,16 +134,19 @@ module "cloud_run" {
       container_port = 80
     }]
     options = {
-      command  = null
-      args     = null
-      env_from = null
+      command = null
+      args    = null
+      env_from = {
+        "WORDPRESS_DB_PASSWORD" : {
+          key  = "latest"
+          name = local.secret_name
+        }
+      }
       # set up the database connection
       env = {
         "WORDPRESS_DB_HOST" : data.skysql_service.this.fqdn
         "WORDPRESS_DB_NAME" : "wordpress"
         "WORDPRESS_DB_USER" : data.skysql_credentials.this.username
-        "WORDPRESS_DB_PASSWORD" : data.skysql_credentials.this.password
-        "WORDPRESS_DEBUG": "true"
       }
     }
     resources     = null
@@ -124,40 +154,29 @@ module "cloud_run" {
   }]
 
   vpc_connector_create = {
-    name = "vpc-connector"
+    name          = local.vpc_connector_name
     ip_cidr_range = "10.10.10.0/28"
     vpc_self_link = data.google_compute_network.this.id
   }
+  service_account = google_service_account.secrets_access.email
+  depends_on      = [google_secret_manager_secret_version.this]
 }
 
-resource "google_secret_manager_secret" "this" {
-  secret_id = "skysql-credentials"
-  replication {
-    automatic = true
-  }
-}
-
-resource "google_secret_manager_secret_version" "this" {
-  secret = google_secret_manager_secret.this.id
-  secret_data = data.skysql_credentials.this.password
-}
-
+###
+# Connect to skysql via a cloud function to create the wordpress database
+###
 module "cloud_function" {
-  source = "./modules/cloud-function"
-  project_id = var.project_id
-  region = var.region
-  function_name = "wordpress-init"
-  source_dir = "${path.module}/init_function"
-  vpc_connector = module.cloud_run.vpc_connector
-  db_host = data.skysql_service.this.fqdn
-  db_user = data.skysql_credentials.this.username
-  db_password_secret = "skysql-credentials"
-}
+  source             = "./modules/cloud-function"
+  project_id         = var.project_id
+  region             = var.region
+  function_name      = "wordpress-init"
+  source_dir         = "${path.module}/init_function"
+  vpc_connector      = module.cloud_run.vpc_connector
+  db_host            = data.skysql_service.this.fqdn
+  db_user            = data.skysql_credentials.this.username
+  db_password_secret = local.secret_name
+  service_account    = google_service_account.secrets_access.email
 
-output "trigger_response" {
-  value = module.cloud_function.trigger_response
-}
-
-output "wordpress_url" {
-  value = module.cloud_run.service.status[0].url
+  # this is due to a quirk in the cloud function resource that jumbles up the secret name when referenced
+  depends_on = [google_secret_manager_secret_version.this]
 }
