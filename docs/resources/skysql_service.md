@@ -1,5 +1,5 @@
 ---
-page_title: "skysql_service Resource - terraform-provider-skysql-alpha"
+page_title: "skysql_service Resource - terraform-provider-skysql-beta"
 subcategory: ""
 description: |-
   Creates and manages a service in SkySQL
