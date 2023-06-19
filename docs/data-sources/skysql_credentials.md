@@ -1,5 +1,5 @@
 ---
-page_title: "skysql_credentials Data Source - terraform-provider-skysql-beta"
+page_title: "skysql_credentials Data Source - terraform-provider-skysql-alpha"
 subcategory: ""
 description: |-
   Returnes a default credentials for a SkySQL service
