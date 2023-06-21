@@ -1,5 +1,5 @@
 ---
-page_title: "skysql_autonomous Resource - terraform-provider-skysql-beta"
+page_title: "skysql_autonomous Resource - terraform-provider-skysql-alpha"
 subcategory: ""
 description: |-
   Autonomous features enable automatic scaling in response to changes in workload.
