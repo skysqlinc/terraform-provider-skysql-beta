@@ -5,7 +5,6 @@ data "skysql_versions" "default" {
   topology = "es-single"
 }
 
-
 # Retrieve the list of projects. Project is a way of grouping the services.
 # Note: Next release will make project_id optional in the create service api
 data "skysql_projects" "default" {}
@@ -28,8 +27,8 @@ resource "skysql_service" "default" {
   ssl_enabled    = true
   version        = data.skysql_versions.default.versions[0].name
   # [Optional] Below you can find example with optional parameters how to configure a privatelink connection
-  endpoint_mechanism        = "privatelink"
-  endpoint_allowed_accounts = ["gcp-project-id"]
+  # endpoint_mechanism        = "privatelink"
+  # endpoint_allowed_accounts = ["gcp-project-id"]
   # [/Optional]
   # The service create is an asynchronous operation.
   # if you want to wait for the service to be created set wait_for_creation to true
@@ -37,7 +36,7 @@ resource "skysql_service" "default" {
   # You need to add your ip address in the CIRD format to allow list in order to connect to the service
   allow_list = [
     {
-      "ip" : "104.28.203.45/32",
+      "ip" : "1.1.1.1/32",
       "comment" : "homeoffice"
     }
   ]
@@ -65,8 +64,7 @@ output "skysql_credentials" {
   sensitive = true
 }
 
-
 # Example how you can generate a command line for the database connection
 output "skysql_cmd" {
-  value = "mariadb --host ${data.skysql_service.default.fqdn} --port 3306 --user ${data.skysql_service.default.service_id} -p --ssl-ca ~/Downloads/skysql_chain_2022.pem"
+  value = "mariadb --host ${data.skysql_service.default.fqdn} --port 3306 --user ${data.skysql_service.default.service_id} -p --ssl-verify-server-cert"
 }
