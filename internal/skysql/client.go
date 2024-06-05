@@ -20,7 +20,7 @@ type Client struct {
 	HTTPClient *resty.Client
 }
 
-func New(baseURL string, AccessToken string) *Client {
+func New(baseURL string, apiKey string) *Client {
 	transport := logging.NewLoggingHTTPTransport(http.DefaultTransport)
 
 	clientName, _ := os.Executable()
@@ -28,8 +28,7 @@ func New(baseURL string, AccessToken string) *Client {
 	return &Client{
 		HTTPClient: resty.NewWithClient(&http.Client{Transport: transport}).
 			SetHeader("User-Agent", filepath.Base(clientName)).
-			SetAuthScheme("Bearer").
-			SetAuthToken(AccessToken).
+			SetHeader("X-API-Key", apiKey).
 			SetBaseURL(baseURL).
 			// Set retry count too non-zero to enable retries
 			SetRetryCount(3).
