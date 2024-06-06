@@ -3,15 +3,16 @@ package provider
 import (
 	"context"
 	"errors"
-	"github.com/matryer/resync"
-	"github.com/skysqlinc/terraform-provider-skysql/internal/skysql"
 	"os"
+
+	"github.com/matryer/resync"
 
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/provider"
 	"github.com/hashicorp/terraform-plugin-framework/provider/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/types"
+	"github.com/skysqlinc/terraform-provider-skysql/internal/skysql"
 )
 
 // Ensure skySQLProvider satisfies various provider interfaces.

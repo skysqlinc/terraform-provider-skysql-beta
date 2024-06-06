@@ -3,17 +3,19 @@ package skysql
 import (
 	"context"
 	"errors"
-	"github.com/go-resty/resty/v2"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/logging"
-	"github.com/skysqlinc/terraform-provider-skysql/internal/skysql/autonomous"
-	"github.com/skysqlinc/terraform-provider-skysql/internal/skysql/organization"
-	"github.com/skysqlinc/terraform-provider-skysql/internal/skysql/provisioning"
 	"net/http"
 	"net/url"
 	"os"
 	"path/filepath"
 	"strconv"
 	"time"
+
+	"github.com/go-resty/resty/v2"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/logging"
+
+	"github.com/skysqlinc/terraform-provider-skysql/internal/skysql/autonomous"
+	"github.com/skysqlinc/terraform-provider-skysql/internal/skysql/organization"
+	"github.com/skysqlinc/terraform-provider-skysql/internal/skysql/provisioning"
 )
 
 type Client struct {
