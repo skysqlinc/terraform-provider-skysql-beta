@@ -461,6 +461,12 @@ func (r *ServiceResource) Create(ctx context.Context, req resource.CreateRequest
 		AvailabilityZone:   state.AvailabilityZone.ValueString(),
 	}
 
+	if !Contains[string]([]string{"gcp", "aws", "azure"}, createServiceRequest.Provider) {
+		resp.Diagnostics.AddAttributeError(path.Root("provider"),
+			"Invalid provider value",
+			fmt.Sprintf("The %q is an invalid value. Allowed values: aws, gcp, azure", createServiceRequest.Provider))
+	}
+
 	if !state.MaxscaleSize.IsUnknown() && !state.MaxscaleSize.IsNull() && len(state.MaxscaleSize.ValueString()) > 0 {
 		createServiceRequest.MaxscaleSize = toPtr[string](state.MaxscaleSize.ValueString())
 	} else {
@@ -1134,10 +1140,10 @@ func (r *ServiceResource) ModifyPlan(ctx context.Context, req resource.ModifyPla
 		return
 	}
 
-	if !Contains[string]([]string{"gcp", "aws"}, plan.Provider.ValueString()) {
+	if !Contains[string]([]string{"gcp", "aws", "azure"}, plan.Provider.ValueString()) {
 		resp.Diagnostics.AddAttributeError(path.Root("provider"),
 			"Invalid provider value",
-			fmt.Sprintf("The %q is an invalid value. Allowed values: aws or gcp", plan.Provider.ValueString()))
+			fmt.Sprintf("The %q is an invalid value. Allowed values: aws, gcp, azure", plan.Provider.ValueString()))
 	}
 
 	if plan.Provider.ValueString() == "aws" {
