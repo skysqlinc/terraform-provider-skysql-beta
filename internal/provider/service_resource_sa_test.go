@@ -144,6 +144,8 @@ func TestServiceResourceServerlessAnalytics(t *testing.T) {
 				  wait_for_update   = true
 				  deletion_protection = false
                   nodes = 1
+				  volume_type = "io1"
+				  volume_iops = 3000
 			}
 							            `,
 				ExpectError: regexp.MustCompile(`The argument "nodes" is read only for the "sa" topology`),
@@ -166,6 +168,8 @@ func TestServiceResourceServerlessAnalytics(t *testing.T) {
 				  wait_for_deletion = true
 				  wait_for_update   = true
 				  deletion_protection = false
+   				  volume_type = "io1"
+				  volume_iops = 3000
 			}
 	            `,
 				ExpectError: regexp.MustCompile(`The argument "architecture" is read only for the "sa" topology`),
@@ -184,6 +188,8 @@ func TestServiceResourceServerlessAnalytics(t *testing.T) {
 				  wait_for_deletion = true
 				  wait_for_update   = true
 				  deletion_protection = false
+				  volume_type = "io1"
+				  volume_iops = 3000
 			}
 	            `,
 				ExpectError: regexp.MustCompile(`The argument "size" is read only for the "sa" topology`),
@@ -202,6 +208,8 @@ func TestServiceResourceServerlessAnalytics(t *testing.T) {
 				  wait_for_deletion = true
 				  wait_for_update   = true
 				  deletion_protection = false
+                  volume_type = "io1"
+				  volume_iops = 3000
 			}
 	            `,
 				ExpectError: regexp.MustCompile(`The argument "ssl_enabled" is read only for the "sa" topology`),
@@ -220,6 +228,8 @@ func TestServiceResourceServerlessAnalytics(t *testing.T) {
 				  wait_for_deletion = true
 				  wait_for_update   = true
 				  deletion_protection = false
+                  volume_type = "io1"
+				  volume_iops = 3000
 			}
 	            `,
 				ExpectError: regexp.MustCompile(`The argument "version" is read only for the "sa" topology`),
@@ -237,6 +247,8 @@ func TestServiceResourceServerlessAnalytics(t *testing.T) {
 				  wait_for_deletion = true
 				  wait_for_update   = true
 				  deletion_protection = false
+                  volume_type = "io1"
+				  volume_iops = 3000
 			}
 			   `,
 				Check: resource.ComposeAggregateTestCheckFunc([]resource.TestCheckFunc{
@@ -256,6 +268,8 @@ func TestServiceResourceServerlessAnalytics(t *testing.T) {
 				  wait_for_deletion = true
 				  wait_for_update   = true
 				  deletion_protection = false
+                  volume_type = "io1"
+				  volume_iops = 3000
 			}
 			   `,
 				ExpectError: regexp.MustCompile(`Cannot change service architecture`),
@@ -274,6 +288,8 @@ func TestServiceResourceServerlessAnalytics(t *testing.T) {
 				  wait_for_deletion = true
 				  wait_for_update   = true
 				  deletion_protection = false
+                  volume_type = "io1"
+				  volume_iops = 3000
 			}
 			   `,
 				ExpectError: regexp.MustCompile(`Attempt to modify read-only attribute`),
@@ -292,6 +308,8 @@ func TestServiceResourceServerlessAnalytics(t *testing.T) {
 				  wait_for_deletion = true
 				  wait_for_update   = true
 				  deletion_protection = false
+                  volume_type = "io1"
+				  volume_iops = 3000
 			}
 			   `,
 				ExpectError: regexp.MustCompile(`Attempt to modify read-only attribute`),
@@ -310,6 +328,8 @@ func TestServiceResourceServerlessAnalytics(t *testing.T) {
 				  wait_for_deletion = true
 				  wait_for_update   = true
 				  deletion_protection = false
+                  volume_type = "io1"
+				  volume_iops = 3000
 			}
 			   `,
 				ExpectError: regexp.MustCompile(`Cannot change service ssl_enabled`),
@@ -328,6 +348,8 @@ func TestServiceResourceServerlessAnalytics(t *testing.T) {
 				  wait_for_deletion = true
 				  wait_for_update   = true
 				  deletion_protection = false
+                  volume_type = "io1"
+				  volume_iops = 3000
 			}
 			  `,
 				ExpectError: regexp.MustCompile(`Cannot change service version`),
