@@ -1,5 +1,13 @@
 # Changelog
 
+## [3.1.4] - 2025-03-13
+### Package Updates
+- upgraded github.com/go-resty/resty/v2 v2.7.0 => v2.16.5
+- upgraded golang.org/x/crypto v0.25.0 => v0.31.0
+- upgraded golang.org/x/net v0.27.0 => v0.33.0
+- upgraded golang.org/x/sys v0.22.0 => v0.28.0
+- upgraded golang.org/x/text v0.16.0 => v0.21.0
+
 ## [3.1.3] - 2024-07-25
 ### Package Updates
 - upgraded go 1.19 => 1.21
