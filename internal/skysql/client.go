@@ -317,6 +317,23 @@ func (c *Client) ModifyServiceStorage(ctx context.Context, serviceID string, siz
 	return err
 }
 
+func (c *Client) UpdateServiceTags(ctx context.Context, serviceID string, tags map[string]string) error {
+	resp, err := c.HTTPClient.R().
+		SetHeader("Accept", "application/json").
+		SetContext(ctx).
+		SetBody(&provisioning.UpdateServiceTagsRequest{Tags: tags}).
+		SetError(&ErrorResponse{}).
+		Patch("/provisioning/v1/services/" + serviceID + "/tags")
+	if err != nil {
+		return err
+	}
+	if resp.IsError() {
+		return handleError(resp)
+	}
+
+	return err
+}
+
 func (c *Client) SetAutonomousActions(
 	ctx context.Context,
 	value autonomous.SetAutonomousActionsRequest,

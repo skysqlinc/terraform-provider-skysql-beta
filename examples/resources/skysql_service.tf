@@ -15,6 +15,13 @@ resource "skysql_service" "default" {
   volume_type       = "gp3"
   volume_iops       = 3000
   volume_throughput = 125
+  # Tags for organizing and managing services
+  tags = {
+    "name"        = "myservice"
+    "environment" = "production"
+    "team"        = "backend"
+    "cost-center" = "engineering"
+  }
   # The service create is an asynchronous operation.
   # if you want to wait for the service to be created set wait_for_creation to true
   wait_for_creation = true

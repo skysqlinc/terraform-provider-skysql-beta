@@ -30,7 +30,13 @@ resource "skysql_service" "this" {
   version                   = data.skysql_versions.this.versions[0].name
   endpoint_mechanism        = "privateconnect"
   endpoint_allowed_accounts = [data.azurerm_subscription.current.subscription_id]
-  wait_for_creation         = true
+  tags = {
+    "name"           = var.skysql_service_name
+    "environment"    = "demo"
+    "connectivity"   = "private-link"
+    "cloud-provider" = "azure"
+  }
+  wait_for_creation = true
   # The following line will be required when tearing down the skysql service
   # deletion_protection = false
 }

@@ -1,5 +1,5 @@
 ---
-page_title: "skysql_service Data Source - terraform-provider-skysql-beta"
+page_title: "skysql_service Data Source - terraform-provider-beta"
 subcategory: ""
 description: |-
   Returns an full SkySQL service details

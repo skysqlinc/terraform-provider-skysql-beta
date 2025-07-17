@@ -21,10 +21,16 @@ resource "skysql_service" "this" {
   version                   = data.skysql_versions.this.versions[0].name
   endpoint_mechanism        = "privateconnect"
   endpoint_allowed_accounts = [data.aws_caller_identity.this.account_id]
-  wait_for_creation         = true
-  volume_type               = "gp3"
-  volume_iops               = 3000
-  volume_throughput         = 125
+  tags = {
+    "name"           = var.skysql_service_name
+    "environment"    = "demo"
+    "connectivity"   = "privateconnect"
+    "cloud-provider" = "aws"
+  }
+  wait_for_creation = true
+  volume_type       = "gp3"
+  volume_iops       = 3000
+  volume_throughput = 125
   # The following line will be required when tearing down the skysql service
   # deletion_protection = false
 }

@@ -35,6 +35,12 @@ resource "skysql_service" "default" {
       "comment" : "localhost"
     }
   ]
+  tags = {
+    "name"        = "myservice"
+    "environment" = "development"
+    "team"        = "engineering"
+    "project"     = "demo"
+  }
   wait_for_creation = true
 }
 

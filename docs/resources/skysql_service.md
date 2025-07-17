@@ -1,5 +1,5 @@
 ---
-page_title: "skysql_service Resource - terraform-provider-skysql-beta"
+page_title: "skysql_service Resource - terraform-provider-beta"
 subcategory: ""
 description: |-
   Creates and manages a service in SkySQL
@@ -29,6 +29,13 @@ resource "skysql_service" "default" {
   volume_type       = "gp3"
   volume_iops       = 3000
   volume_throughput = 125
+  # Tags for organizing and managing services
+  tags = {
+    "name"        = "myservice"
+    "environment" = "production"
+    "team"        = "backend"
+    "cost-center" = "engineering"
+  }
   # The service create is an asynchronous operation.
   # if you want to wait for the service to be created set wait_for_creation to true
   wait_for_creation = true
@@ -65,6 +72,7 @@ resource "skysql_service" "default" {
 - `size` (String) The size of the service. Valid values are: sky-2x4, sky-2x8 etc
 - `ssl_enabled` (Boolean) Whether to enable SSL. Valid values are: true or false
 - `storage` (Number) The storage size in GB. Valid values are: 100, 200, 300, 400, 500, 600, 700, 800, 900, 1000, 2000, 3000, 4000, 5000, 6000, 7000, 8000, 9000, 10000
+- `tags` (Map of String) Tags associated with the service
 - `timeouts` (Block, Optional) (see [below for nested schema](#nestedblock--timeouts))
 - `version` (String) The software version
 - `volume_iops` (Number) The volume IOPS. This is only applicable for AWS

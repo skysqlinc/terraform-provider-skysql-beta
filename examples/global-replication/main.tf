@@ -33,6 +33,12 @@ resource "skysql_service" "primary" {
   storage        = 100
   ssl_enabled    = true
   version        = local.sky_versions_filtered[0].name
+  tags = {
+    "name"        = "my-primary-service"
+    "environment" = "production"
+    "role"        = "primary"
+    "replication" = "enabled"
+  }
   # The service create is an asynchronous operation.
   # if you want to wait for the service to be created set wait_for_creation to true
   wait_for_creation = true
@@ -54,6 +60,12 @@ resource "skysql_service" "replica" {
   version             = local.sky_versions_filtered[0].name
   primary_host        = skysql_service.primary.id
   replication_enabled = true
+  tags = {
+    "name"        = "my-replica-service"
+    "environment" = "production"
+    "role"        = "replica"
+    "replication" = "enabled"
+  }
   # The service create is an asynchronous operation.
   # if you want to wait for the service to be created set wait_for_creation to true
   wait_for_creation = true
