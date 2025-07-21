@@ -22,7 +22,7 @@ Use the navigation to the left to read about the available resources.
 
 ### Automated Installation (Recommended)
 
-The Terraform Provider for SkySQL listed on the [Terraform Registry](https://registry.terraform.io/providers/skysqlinc/skysql-beta/).
+The Terraform Provider for SkySQL listed on the [Terraform Registry](https://registry.terraform.io/providers/skysqlinc/beta/).
 
 #### Create a Terraform configuration file
 
@@ -34,7 +34,7 @@ Providers listed on the Terraform Registry can be automatically downloaded when 
 terraform {
   required_providers {
     skysql = {
-      source = "registry.terraform.io/skysqlinc/skysql-beta"
+      source = "registry.terraform.io/skysqlinc/beta"
     }
   }
 }
@@ -48,7 +48,7 @@ You can use `version` locking and operators to require specific versions of the 
 terraform {
   required_providers {
     skysql = {
-      source = "registry.terraform.io/skysqlinc/skysql-beta"
+      source = "registry.terraform.io/skysqlinc/beta"
        version = ">= x.y.z"
     }
   }
@@ -83,20 +83,20 @@ The following examples use Bash on Linux (x64).
     > `<registry>/<namespace>/<service>/<version>/<OS_arch>/`
 
     ```console
-    mkdir -p ~/.terraform.d/plugins/registry.terraform.io/skysqlinc/skysql-beta
+    mkdir -p ~/.terraform.d/plugins/registry.terraform.io/skysqlinc/beta
     ```
 
 3. Copy the plugin to a target system and move to the Terraform plugins directory.
 
     ```console
-    mv terraform-provider-beta_${RELEASE}_${OS}_${ARCH}.zip ~/.terraform.d/plugins/registry.terraform.io/skysqlinc/skysql-beta/
+    mv terraform-provider-beta_${RELEASE}_${OS}_${ARCH}.zip ~/.terraform.d/plugins/registry.terraform.io/skysqlinc/beta/
 
     ```
 
 4. Verify the presence of the plugin in the Terraform plugins directory.
 
     ```console
-    ls ~/.terraform.d/plugins/registry.terraform.io/skysqlinc/skysql-beta/
+    ls ~/.terraform.d/plugins/registry.terraform.io/skysqlinc/beta/
     ```
 
 #### macOS
@@ -113,7 +113,7 @@ The following example uses Bash (default) on macOS (ARM).
 
     ```console
     export RELEASE=x.y.z
-    wget -q https://github.com/skysqlinc/terraform-provider-beta/releases/download/v${RELEASE}/terraform-provider-skysql-beta_${RELEASE}_darwin_arm64.zip
+    wget -q https://github.com/skysqlinc/terraform-provider-beta/releases/download/v${RELEASE}/terraform-provider-beta_${RELEASE}_darwin_arm64.zip
     ```
 
 3. Create a directory for the provider.
@@ -125,30 +125,30 @@ The following example uses Bash (default) on macOS (ARM).
     > `<registry>/<namespace>/<service>/<version>/<OS_arch>/`
 
     ```console
-    mkdir -p ~/.terraform.d/plugins/registry.terraform.io/skysqlinc/skysql-beta/
+    mkdir -p ~/.terraform.d/plugins/registry.terraform.io/skysqlinc/beta/
     ```
 
 4. Copy the plugin to a target system and move to the Terraform plugins directory.
 
     ```console
-    mv terraform-provider-beta_${RELEASE}_darwin_arm64.zip ~/.terraform.d/plugins/registry.terraform.io/skysqlinc/skysql-beta/
+    mv terraform-provider-beta_${RELEASE}_darwin_arm64.zip ~/.terraform.d/plugins/registry.terraform.io/skysqlinc/beta/
     ```
 
 5. Verify the presence of the plugin in the Terraform plugins directory.
 
     ```console
-    ls ~/.terraform.d/plugins/registry.terraform.io/skysqlinc/skysql-beta/
+    ls ~/.terraform.d/plugins/registry.terraform.io/skysqlinc/beta/
     ```
 
 ## Configure the Terraform Configuration Files
 
-In order to use the `skysql-beta` terraform provider, you need to configure the provider in your Terraform configuration files.
+In order to use the `beta` terraform provider, you need to configure the provider in your Terraform configuration files.
 
 ```hcl
 terraform {
   required_providers {
     skysql = {
-      source = "registry.terraform.io/skysqlinc/skysql-beta"
+      source = "registry.terraform.io/skysqlinc/beta"
     }
   }
 }
@@ -160,7 +160,7 @@ or you can specify the provider version.
 terraform {
   required_providers {
     skysql = {
-      source = "registry.terraform.io/skysqlinc/skysql-beta"
+      source = "registry.terraform.io/skysqlinc/beta"
       version = ">= x.y.z"
     }
   }
@@ -177,9 +177,9 @@ $ terraform init
 Initializing the backend...
 
 Initializing provider plugins...
-- Finding latest version of skysqlinc/skysql-beta...
-- Installing skysqlinc/skysql-beta x.y.z...
-- Installed skysqlinc/skysql-beta x.y.z (unauthenticated)
+- Finding latest version of skysqlinc/beta...
+- Installing skysqlinc/beta x.y.z...
+- Installed skysqlinc/beta x.y.z (unauthenticated)
 ...
 
 Terraform has been successfully initialized!
@@ -195,7 +195,7 @@ To find the provider version, navigate to the working directory of your Terrafor
 $ terraform version
 Terraform x.y.z
 on darwin_arm64
-+ provider registry.terraform.io/skysqlinc/skysql-beta x.y.z
++ provider registry.terraform.io/skysqlinc/beta x.y.z
 ```
 
 ## Create a new SkySQL service
