@@ -1,8 +1,6 @@
 module github.com/skysqlinc/terraform-provider-skysql
 
-go 1.23.0
-
-toolchain go1.23.8
+go 1.24.2
 
 require (
 	github.com/asaskevich/govalidator v0.0.0-20210307081110-f21760c49a8d
