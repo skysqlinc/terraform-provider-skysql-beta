@@ -50,8 +50,6 @@ Instance sizes follow the naming convention `sky-<vCPUs>x<RAM_GB>`. Common value
 
 Use the [SkySQL Portal](https://app.skysql.com) or the SkySQL API to list all available sizes for your cloud provider and region.
 
-~> **Note:** Instance type scaling is not supported for the `sa` (Serverless Analytics / autonomous) topology. The `size` attribute is read-only for autonomous services.
-
 ## Scaling Storage
 
 To change the storage size, update the `storage` attribute. On AWS, you can also adjust `volume_iops` and `volume_throughput` at the same time.
