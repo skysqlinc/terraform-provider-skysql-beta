@@ -1,5 +1,9 @@
 # Changelog
 
+## [3.4.0] - 2026-02-21
+### Added
+- `skysql_config` resource for creating and managing custom configuration objects with server variable overrides.
+
 ## [3.3.0] - 2026-01-16
 ### Added
 - Galera Cluster topology support for high-availability multi-master replication
