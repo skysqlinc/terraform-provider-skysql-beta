@@ -503,3 +503,129 @@ func (c *Client) GetAvailabilityZones(ctx context.Context, region string, option
 	}
 	return *resp.Result().(*[]provisioning.AvailabilityZone), err
 }
+
+func (c *Client) CreateConfig(ctx context.Context, req *provisioning.CreateConfigRequest, opts ...RequestOption) (*provisioning.Config, error) {
+	r := c.HTTPClient.R().
+		SetHeader("Accept", "application/json").
+		SetResult(provisioning.Config{}).
+		SetError(&ErrorResponse{}).
+		SetContext(ctx).
+		SetBody(req)
+
+	for _, opt := range opts {
+		opt(r)
+	}
+
+	resp, err := r.Post("/provisioning/v1/configs")
+	if err != nil {
+		return nil, err
+	}
+	if resp.IsError() {
+		return nil, handleError(resp)
+	}
+	return resp.Result().(*provisioning.Config), nil
+}
+
+func (c *Client) GetConfigByID(ctx context.Context, configID string, opts ...RequestOption) (*provisioning.Config, error) {
+	r := c.HTTPClient.R().
+		SetHeader("Accept", "application/json").
+		SetResult(provisioning.Config{}).
+		SetError(&ErrorResponse{}).
+		SetContext(ctx)
+
+	for _, opt := range opts {
+		opt(r)
+	}
+
+	resp, err := r.Get("/provisioning/v1/configs/" + configID)
+	if err != nil {
+		return nil, err
+	}
+	if resp.IsError() {
+		return nil, handleError(resp)
+	}
+	return resp.Result().(*provisioning.Config), nil
+}
+
+func (c *Client) UpdateConfig(ctx context.Context, configID string, req *provisioning.UpdateConfigRequest, opts ...RequestOption) (*provisioning.Config, error) {
+	r := c.HTTPClient.R().
+		SetHeader("Accept", "application/json").
+		SetResult(provisioning.Config{}).
+		SetError(&ErrorResponse{}).
+		SetContext(ctx).
+		SetBody(req)
+
+	for _, opt := range opts {
+		opt(r)
+	}
+
+	resp, err := r.Patch("/provisioning/v1/configs/" + configID)
+	if err != nil {
+		return nil, err
+	}
+	if resp.IsError() {
+		return nil, handleError(resp)
+	}
+	return resp.Result().(*provisioning.Config), nil
+}
+
+func (c *Client) DeleteConfig(ctx context.Context, configID string, opts ...RequestOption) error {
+	r := c.HTTPClient.R().
+		SetHeader("Accept", "application/json").
+		SetError(&ErrorResponse{}).
+		SetContext(ctx)
+
+	for _, opt := range opts {
+		opt(r)
+	}
+
+	resp, err := r.Delete("/provisioning/v1/configs/" + configID)
+	if err != nil {
+		return err
+	}
+	if resp.IsError() {
+		return handleError(resp)
+	}
+	return nil
+}
+
+func (c *Client) SetConfigValue(ctx context.Context, configID string, variableName string, value string, opts ...RequestOption) error {
+	r := c.HTTPClient.R().
+		SetHeader("Accept", "application/json").
+		SetError(&ErrorResponse{}).
+		SetContext(ctx).
+		SetBody(&provisioning.ConfigValueRequest{Value: value})
+
+	for _, opt := range opts {
+		opt(r)
+	}
+
+	resp, err := r.Post("/provisioning/v1/configs/" + configID + "/values/" + variableName)
+	if err != nil {
+		return err
+	}
+	if resp.IsError() {
+		return handleError(resp)
+	}
+	return nil
+}
+
+func (c *Client) UnsetConfigValue(ctx context.Context, configID string, variableName string, opts ...RequestOption) error {
+	r := c.HTTPClient.R().
+		SetHeader("Accept", "application/json").
+		SetError(&ErrorResponse{}).
+		SetContext(ctx)
+
+	for _, opt := range opts {
+		opt(r)
+	}
+
+	resp, err := r.Delete("/provisioning/v1/configs/" + configID + "/values/" + variableName)
+	if err != nil {
+		return err
+	}
+	if resp.IsError() {
+		return handleError(resp)
+	}
+	return nil
+}
