@@ -1,0 +1,193 @@
+package provider
+
+import (
+	"encoding/json"
+	"fmt"
+	"net/http"
+	"os"
+	"testing"
+	"time"
+
+	"github.com/google/uuid"
+	"github.com/hashicorp/terraform-plugin-framework/providerserver"
+	"github.com/hashicorp/terraform-plugin-go/tfprotov6"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
+	"github.com/skysqlinc/terraform-provider-skysql/internal/skysql"
+	"github.com/skysqlinc/terraform-provider-skysql/internal/skysql/provisioning"
+	"github.com/stretchr/testify/require"
+)
+
+func TestServiceResourceWithConfigID(t *testing.T) {
+	configureOnce.Reset()
+
+	const serviceID = "dbdgf42002420"
+	const configID = "cfg-test-uuid-001"
+
+	testUrl, expectRequest, close := mockSkySQLAPI(t)
+	defer close()
+	os.Setenv("TF_SKYSQL_API_KEY", "[api-key]")
+	os.Setenv("TF_SKYSQL_API_BASE_URL", testUrl)
+
+	service := &provisioning.Service{
+		ID:           serviceID,
+		Name:         "test-with-config",
+		Region:       "us-central1",
+		Provider:     "gcp",
+		Tier:         "power",
+		Topology:     "es-single",
+		Version:      "10.6.11-6-1",
+		Architecture: "amd64",
+		Size:         "sky-2x8",
+		Nodes:        1,
+		SSLEnabled:   true,
+		FQDN:         "",
+		Status:       "ready",
+		CreatedOn:    int(time.Now().Unix()),
+		UpdatedOn:    int(time.Now().Unix()),
+		CreatedBy:    uuid.New().String(),
+		UpdatedBy:    uuid.New().String(),
+		Endpoints: []provisioning.Endpoint{
+			{
+				Name: "primary",
+				Ports: []provisioning.Port{
+					{Name: "readwrite", Port: 3306, Purpose: "readwrite"},
+				},
+			},
+		},
+		StorageVolume: struct {
+			Size       int    `json:"size"`
+			VolumeType string `json:"volume_type"`
+			IOPS       int    `json:"iops"`
+			Throughput int    `json:"throughput"`
+		}{Size: 100, VolumeType: "pd-ssd"},
+		IsActive:    true,
+		ServiceType: "transactional",
+	}
+
+	// 1. Provider configure: GET /versions
+	expectRequest(func(w http.ResponseWriter, req *http.Request) {
+		r := require.New(t)
+		r.Equal(http.MethodGet, req.Method)
+		r.Equal("/provisioning/v1/versions", req.URL.Path)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode([]provisioning.Version{})
+	})
+
+	// 2. Create: POST /services
+	expectRequest(func(w http.ResponseWriter, req *http.Request) {
+		r := require.New(t)
+		r.Equal(http.MethodPost, req.Method)
+		r.Equal("/provisioning/v1/services", req.URL.Path)
+		w.Header().Set("Content-Type", "application/json")
+		pendingService := *service
+		pendingService.Status = "pending_create"
+		json.NewEncoder(w).Encode(&pendingService)
+	})
+
+	// 3. Wait for creation: GET /services/{id} → ready
+	expectRequest(func(w http.ResponseWriter, req *http.Request) {
+		r := require.New(t)
+		r.Equal(http.MethodGet, req.Method)
+		r.Equal("/provisioning/v1/services/"+serviceID, req.URL.Path)
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(service)
+	})
+
+	// 4. readServiceState after wait: GET /services/{id}
+	expectRequest(func(w http.ResponseWriter, req *http.Request) {
+		r := require.New(t)
+		r.Equal(http.MethodGet, req.Method)
+		r.Equal("/provisioning/v1/services/"+serviceID, req.URL.Path)
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(service)
+	})
+
+	// 5. Apply config: POST /services/{id}/config
+	expectRequest(func(w http.ResponseWriter, req *http.Request) {
+		r := require.New(t)
+		r.Equal(http.MethodPost, req.Method)
+		r.Equal("/provisioning/v1/services/"+serviceID+"/config", req.URL.Path)
+
+		var payload provisioning.ServiceConfigState
+		err := json.NewDecoder(req.Body).Decode(&payload)
+		r.NoError(err)
+		r.Equal(configID, payload.ConfigID)
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusAccepted)
+		json.NewEncoder(w).Encode(&payload)
+	})
+
+	// 6. Wait for config apply: GET /services/{id} → ready
+	expectRequest(func(w http.ResponseWriter, req *http.Request) {
+		r := require.New(t)
+		r.Equal(http.MethodGet, req.Method)
+		r.Equal("/provisioning/v1/services/"+serviceID, req.URL.Path)
+		w.Header().Set("Content-Type", "application/json")
+		serviceWithConfig := *service
+		serviceWithConfig.ConfigID = configID
+		json.NewEncoder(w).Encode(&serviceWithConfig)
+	})
+
+	// 7. Terraform Read after Create: GET /services/{id}
+	expectRequest(func(w http.ResponseWriter, req *http.Request) {
+		r := require.New(t)
+		r.Equal(http.MethodGet, req.Method)
+		r.Equal("/provisioning/v1/services/"+serviceID, req.URL.Path)
+		w.Header().Set("Content-Type", "application/json")
+		serviceWithConfig := *service
+		serviceWithConfig.ConfigID = configID
+		json.NewEncoder(w).Encode(&serviceWithConfig)
+	})
+
+	// 8. Destroy: DELETE /services/{id}
+	expectRequest(func(w http.ResponseWriter, req *http.Request) {
+		r := require.New(t)
+		r.Equal(http.MethodDelete, req.Method)
+		r.Equal("/provisioning/v1/services/"+serviceID, req.URL.Path)
+		w.WriteHeader(http.StatusAccepted)
+	})
+
+	// 9. Wait for deletion: GET /services/{id} → 404
+	expectRequest(func(w http.ResponseWriter, req *http.Request) {
+		r := require.New(t)
+		r.Equal(http.MethodGet, req.Method)
+		r.Equal("/provisioning/v1/services/"+serviceID, req.URL.Path)
+		w.WriteHeader(http.StatusNotFound)
+		json.NewEncoder(w).Encode(&skysql.ErrorResponse{Code: http.StatusNotFound})
+	})
+
+	resource.Test(t, resource.TestCase{
+		IsUnitTest: true,
+		ProtoV6ProviderFactories: map[string]func() (tfprotov6.ProviderServer, error){
+			"skysql": providerserver.NewProtocol6WithError(New("")()),
+		},
+		Steps: []resource.TestStep{
+			{
+				Config: fmt.Sprintf(`
+				resource "skysql_service" "default" {
+					service_type        = "transactional"
+					topology            = "es-single"
+					cloud_provider      = "gcp"
+					region              = "us-central1"
+					name                = "test-with-config"
+					architecture        = "amd64"
+					nodes               = 1
+					size                = "sky-2x8"
+					storage             = 100
+					ssl_enabled         = true
+					version             = "10.6.11-6-1"
+					wait_for_creation   = true
+					wait_for_deletion   = true
+					deletion_protection = false
+					config_id           = "%s"
+				}`, configID),
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttr("skysql_service.default", "id", serviceID),
+					resource.TestCheckResourceAttr("skysql_service.default", "config_id", configID),
+				),
+			},
+		},
+	})
+}

@@ -35,6 +35,7 @@ type Service struct {
 	MaxscaleSize       *string           `json:"maxscale_size,omitempty"`
 	AvailabilityZone   string            `json:"availability_zone,omitempty"`
 	Tags               map[string]string `json:"tags,omitempty"`
+	ConfigID           string            `json:"config_id,omitempty"`
 }
 
 type Endpoint struct {

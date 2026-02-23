@@ -610,6 +610,47 @@ func (c *Client) SetConfigValue(ctx context.Context, configID string, variableNa
 	return nil
 }
 
+func (c *Client) ApplyConfigToService(ctx context.Context, serviceID string, configID string, opts ...RequestOption) error {
+	r := c.HTTPClient.R().
+		SetHeader("Accept", "application/json").
+		SetError(&ErrorResponse{}).
+		SetContext(ctx).
+		SetBody(&provisioning.ServiceConfigState{ConfigID: configID})
+
+	for _, opt := range opts {
+		opt(r)
+	}
+
+	resp, err := r.Post("/provisioning/v1/services/" + serviceID + "/config")
+	if err != nil {
+		return err
+	}
+	if resp.IsError() {
+		return handleError(resp)
+	}
+	return nil
+}
+
+func (c *Client) RemoveConfigFromService(ctx context.Context, serviceID string, opts ...RequestOption) error {
+	r := c.HTTPClient.R().
+		SetHeader("Accept", "application/json").
+		SetError(&ErrorResponse{}).
+		SetContext(ctx)
+
+	for _, opt := range opts {
+		opt(r)
+	}
+
+	resp, err := r.Delete("/provisioning/v1/services/" + serviceID + "/config")
+	if err != nil {
+		return err
+	}
+	if resp.IsError() {
+		return handleError(resp)
+	}
+	return nil
+}
+
 func (c *Client) UnsetConfigValue(ctx context.Context, configID string, variableName string, opts ...RequestOption) error {
 	r := c.HTTPClient.R().
 		SetHeader("Accept", "application/json").

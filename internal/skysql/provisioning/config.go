@@ -31,3 +31,8 @@ type UpdateConfigRequest struct {
 type ConfigValueRequest struct {
 	Value string `json:"value"`
 }
+
+// ServiceConfigState is the request body for POST /services/{service_id}/config.
+type ServiceConfigState struct {
+	ConfigID string `json:"config_id"`
+}
