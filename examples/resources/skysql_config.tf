@@ -2,10 +2,15 @@
 #
 # Create a custom configuration object with server variable overrides.
 # The topology and version must match the target service.
+#
+# By default, allow_restart is false — any variable that requires a service
+# restart (e.g. innodb_buffer_pool_size) will be rejected unless you set
+# allow_restart = true.
 resource "skysql_config" "tuned" {
-  name     = "my-tuned-config"
-  topology = "es-replica"
-  version  = "10.6.7-3-1"
+  name          = "my-tuned-config"
+  topology      = "es-replica"
+  version       = "10.6.7-3-1"
+  allow_restart = true
 
   values = {
     "max_connections"         = "500"

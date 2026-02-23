@@ -36,3 +36,21 @@ type ConfigValueRequest struct {
 type ServiceConfigState struct {
 	ConfigID string `json:"config_id"`
 }
+
+// ConfigKey represents a configurable parameter returned by GET /topologies/{topology}/configs.
+type ConfigKey struct {
+	ID              string   `json:"id"`
+	Name            string   `json:"name"`
+	Component       string   `json:"component"`
+	Flags           uint     `json:"flags"`
+	ConfigSection   string   `json:"config_section,omitempty"`
+	Tags            []string `json:"tags"`
+	AllowedValues   []string `json:"allowed_values"`
+	DefaultValues   []string `json:"default_value"`
+	DocURL          string   `json:"documentation_url,omitempty"`
+	Readonly        bool     `json:"readonly"`
+	Multiselect     bool     `json:"multiselect"`
+	RequiresRestart bool     `json:"requires_restart"`
+	MinimumValue    string   `json:"minimum_value,omitempty"`
+	MaximumValue    string   `json:"maximum_value,omitempty"`
+}

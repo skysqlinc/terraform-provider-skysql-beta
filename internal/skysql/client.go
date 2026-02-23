@@ -651,6 +651,32 @@ func (c *Client) RemoveConfigFromService(ctx context.Context, serviceID string, 
 	return nil
 }
 
+func (c *Client) GetConfigKeysByTopology(ctx context.Context, topologyName string, version string, opts ...RequestOption) ([]provisioning.ConfigKey, error) {
+	var result []provisioning.ConfigKey
+	r := c.HTTPClient.R().
+		SetHeader("Accept", "application/json").
+		SetResult(&result).
+		SetError(&ErrorResponse{}).
+		SetContext(ctx)
+
+	if version != "" {
+		r.SetQueryParam("version", version)
+	}
+
+	for _, opt := range opts {
+		opt(r)
+	}
+
+	resp, err := r.Get("/provisioning/v1/topologies/" + topologyName + "/configs")
+	if err != nil {
+		return nil, err
+	}
+	if resp.IsError() {
+		return nil, handleError(resp)
+	}
+	return result, nil
+}
+
 func (c *Client) UnsetConfigValue(ctx context.Context, configID string, variableName string, opts ...RequestOption) error {
 	r := c.HTTPClient.R().
 		SetHeader("Accept", "application/json").

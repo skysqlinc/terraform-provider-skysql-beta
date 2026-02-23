@@ -5,10 +5,12 @@ import (
 	"errors"
 	"fmt"
 	"sort"
+	"strings"
 
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/booldefault"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/mapplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
@@ -34,13 +36,14 @@ type ConfigResource struct {
 
 // ConfigResourceModel describes the resource data model.
 type ConfigResourceModel struct {
-	ID         types.String `tfsdk:"id"`
-	Name       types.String `tfsdk:"name"`
-	Topology   types.String `tfsdk:"topology"`
-	Version    types.String `tfsdk:"version"`
-	TopologyID types.String `tfsdk:"topology_id"`
-	VersionID  types.String `tfsdk:"version_id"`
-	Values     types.Map    `tfsdk:"values"`
+	ID           types.String `tfsdk:"id"`
+	Name         types.String `tfsdk:"name"`
+	Topology     types.String `tfsdk:"topology"`
+	Version      types.String `tfsdk:"version"`
+	TopologyID   types.String `tfsdk:"topology_id"`
+	VersionID    types.String `tfsdk:"version_id"`
+	AllowRestart types.Bool   `tfsdk:"allow_restart"`
+	Values       types.Map    `tfsdk:"values"`
 }
 
 func (r *ConfigResource) Metadata(ctx context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
@@ -102,6 +105,15 @@ func (r *ConfigResource) Schema(ctx context.Context, req resource.SchemaRequest,
 					stringplanmodifier.UseStateForUnknown(),
 				},
 			},
+			"allow_restart": schema.BoolAttribute{
+				Optional:    true,
+				Computed:    true,
+				Default:     booldefault.StaticBool(false),
+				Description: "Whether to allow configuration values that require a service restart. When false (the default), setting any variable that has requires_restart = true in the DPS parameter catalog will be rejected. Set to true to permit restart-causing variables.",
+				MarkdownDescription: "Whether to allow configuration values that require a service restart. " +
+					"When `false` (the default), setting any variable that has `requires_restart = true` in the DPS parameter catalog will be rejected. " +
+					"Set to `true` to permit restart-causing variables.",
+			},
 			"values": schema.MapAttribute{
 				Optional:            true,
 				ElementType:         types.StringType,
@@ -132,12 +144,68 @@ func (r *ConfigResource) Configure(ctx context.Context, req resource.ConfigureRe
 	r.client = client
 }
 
+// checkRestartValues fetches config keys for the given topology/version and returns
+// the names of any values that require a service restart.
+func (r *ConfigResource) checkRestartValues(ctx context.Context, topologyName string, version string, valueNames []string) ([]string, error) {
+	keys, err := r.client.GetConfigKeysByTopology(ctx, topologyName, version)
+	if err != nil {
+		return nil, fmt.Errorf("unable to fetch config keys for topology %q: %w", topologyName, err)
+	}
+
+	// Build a lookup of key name → requires_restart.
+	keyRestartMap := make(map[string]bool, len(keys))
+	for _, k := range keys {
+		keyRestartMap[k.Name] = k.RequiresRestart
+	}
+
+	var restartVars []string
+	for _, name := range valueNames {
+		if keyRestartMap[name] {
+			restartVars = append(restartVars, name)
+		}
+	}
+	sort.Strings(restartVars)
+	return restartVars, nil
+}
+
 func (r *ConfigResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
 	var data ConfigResourceModel
 
 	resp.Diagnostics.Append(req.Plan.Get(ctx, &data)...)
 	if resp.Diagnostics.HasError() {
 		return
+	}
+
+	// Validate allow_restart before creating the config.
+	if !data.Values.IsNull() && !data.Values.IsUnknown() && !data.AllowRestart.ValueBool() {
+		values := make(map[string]string)
+		resp.Diagnostics.Append(data.Values.ElementsAs(ctx, &values, false)...)
+		if resp.Diagnostics.HasError() {
+			return
+		}
+
+		names := make([]string, 0, len(values))
+		for name := range values {
+			names = append(names, name)
+		}
+
+		restartVars, err := r.checkRestartValues(ctx, data.Topology.ValueString(), data.Version.ValueString(), names)
+		if err != nil {
+			resp.Diagnostics.AddError("Error checking config key restart requirements", err.Error())
+			return
+		}
+
+		if len(restartVars) > 0 {
+			resp.Diagnostics.AddError(
+				"Configuration contains variables that require a service restart",
+				fmt.Sprintf(
+					"The following variables require a service restart: %s. "+
+						"Set allow_restart = true on the skysql_config resource to permit restart-causing variables.",
+					strings.Join(restartVars, ", "),
+				),
+			)
+			return
+		}
 	}
 
 	// Create the config using name-based topology/version resolution.
@@ -263,6 +331,36 @@ func (r *ConfigResource) Update(ctx context.Context, req resource.UpdateRequest,
 		resp.Diagnostics.Append(plan.Values.ElementsAs(ctx, &newValues, false)...)
 		if resp.Diagnostics.HasError() {
 			return
+		}
+	}
+
+	// Validate allow_restart for new or changed values.
+	if !plan.AllowRestart.ValueBool() {
+		changed := make([]string, 0)
+		for name, newVal := range newValues {
+			if oldVal, exists := oldValues[name]; !exists || oldVal != newVal {
+				changed = append(changed, name)
+			}
+		}
+
+		if len(changed) > 0 {
+			restartVars, err := r.checkRestartValues(ctx, plan.Topology.ValueString(), plan.Version.ValueString(), changed)
+			if err != nil {
+				resp.Diagnostics.AddError("Error checking config key restart requirements", err.Error())
+				return
+			}
+
+			if len(restartVars) > 0 {
+				resp.Diagnostics.AddError(
+					"Configuration contains variables that require a service restart",
+					fmt.Sprintf(
+						"The following variables require a service restart: %s. "+
+							"Set allow_restart = true on the skysql_config resource to permit restart-causing variables.",
+						strings.Join(restartVars, ", "),
+					),
+				)
+				return
+			}
 		}
 	}
 
