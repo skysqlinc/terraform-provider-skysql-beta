@@ -467,6 +467,15 @@ func (r *ServiceResource) Create(ctx context.Context, req resource.CreateRequest
 		return
 	}
 
+	// Validate: config_id requires wait_for_creation to be true.
+	if !state.ConfigID.IsNull() && state.ConfigID.ValueString() != "" && !state.WaitForCreation.ValueBool() {
+		resp.Diagnostics.AddError(
+			"Invalid configuration",
+			"config_id requires wait_for_creation = true. The service must be ready before a configuration can be applied.",
+		)
+		return
+	}
+
 	createServiceRequest := &provisioning.CreateServiceRequest{
 		Name:               state.Name.ValueString(),
 		ProjectID:          state.ProjectID.ValueString(),
@@ -1183,7 +1192,21 @@ func (r *ServiceResource) updateServiceConfig(ctx context.Context, plan *Service
 
 	serviceID := state.ID.ValueString()
 
+	// Check the actual service state to avoid applying the same config
+	// (e.g. after import, TF state may be empty but the service already has the config).
+	service, err := r.client.GetServiceByID(ctx, serviceID, skysql.WithOrgID(state.OrgID.ValueString()))
+	if err != nil {
+		resp.Diagnostics.AddError("Error reading service", err.Error())
+		return
+	}
+
 	if plan.ConfigID.IsNull() || planConfigID == "" {
+		if service.ConfigID == "" {
+			// Already using default config — nothing to do.
+			state.ConfigID = types.StringNull()
+			resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
+			return
+		}
 		// Config removed — revert to default.
 		tflog.Info(ctx, "Removing configuration from service", map[string]interface{}{
 			"service_id": serviceID,
@@ -1196,6 +1219,16 @@ func (r *ServiceResource) updateServiceConfig(ctx context.Context, plan *Service
 		}
 		state.ConfigID = types.StringNull()
 	} else {
+		if service.ConfigID == planConfigID {
+			// Config already applied (e.g. after import) — update state only.
+			tflog.Info(ctx, "Service already has the desired configuration", map[string]interface{}{
+				"service_id": serviceID,
+				"config_id":  planConfigID,
+			})
+			state.ConfigID = types.StringValue(planConfigID)
+			resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
+			return
+		}
 		// Config changed or added.
 		tflog.Info(ctx, "Applying configuration to service", map[string]interface{}{
 			"service_id": serviceID,
