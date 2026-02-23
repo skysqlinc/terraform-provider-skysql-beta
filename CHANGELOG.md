@@ -3,6 +3,7 @@
 ## [3.4.0] - 2026-02-21
 ### Added
 - `skysql_config` resource for creating and managing custom configuration objects with server variable overrides.
+- `config_id` attribute on `skysql_service` resource to apply a custom configuration to a service.
 
 ## [3.3.0] - 2026-01-16
 ### Added
