@@ -589,12 +589,16 @@ func (c *Client) DeleteConfig(ctx context.Context, configID string, opts ...Requ
 	return nil
 }
 
-func (c *Client) SetConfigValue(ctx context.Context, configID string, variableName string, value string, opts ...RequestOption) error {
+func (c *Client) SetConfigValue(ctx context.Context, configID string, variableName string, value string, allowRestart bool, opts ...RequestOption) error {
 	r := c.HTTPClient.R().
 		SetHeader("Accept", "application/json").
 		SetError(&ErrorResponse{}).
 		SetContext(ctx).
 		SetBody(&provisioning.ConfigValueRequest{Value: value})
+
+	if allowRestart {
+		r.SetQueryParam("allow_restart", "true")
+	}
 
 	for _, opt := range opts {
 		opt(r)
@@ -677,11 +681,15 @@ func (c *Client) GetConfigKeysByTopology(ctx context.Context, topologyName strin
 	return result, nil
 }
 
-func (c *Client) UnsetConfigValue(ctx context.Context, configID string, variableName string, opts ...RequestOption) error {
+func (c *Client) UnsetConfigValue(ctx context.Context, configID string, variableName string, allowRestart bool, opts ...RequestOption) error {
 	r := c.HTTPClient.R().
 		SetHeader("Accept", "application/json").
 		SetError(&ErrorResponse{}).
 		SetContext(ctx)
+
+	if allowRestart {
+		r.SetQueryParam("allow_restart", "true")
+	}
 
 	for _, opt := range opts {
 		opt(r)

@@ -131,7 +131,7 @@ resource "skysql_service" "service_b" {
 
 ### Optional
 
-- `allow_restart` (Boolean) Whether to allow configuration values that require a service restart. When `false` (the default), setting any variable that has `requires_restart = true` in the DPS parameter catalog will be rejected. Set to `true` to permit restart-causing variables.
+- `allow_restart` (Boolean) Whether to allow configuration values that require a service restart. When `false` (the default), setting any variable that has `requires_restart = true` in the DPS parameter catalog will be rejected both client-side (before the API call) and server-side (by DPS). Set to `true` to permit restart-causing variables. The parameter is forwarded to DPS as `?allow_restart=true` on config value API calls.
 - `values` (Map of String) A map of MariaDB server variable names to their values (e.g. `max_connections = "500"`).
 
 ### Read-Only

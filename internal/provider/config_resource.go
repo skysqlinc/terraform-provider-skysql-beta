@@ -109,10 +109,11 @@ func (r *ConfigResource) Schema(ctx context.Context, req resource.SchemaRequest,
 				Optional:    true,
 				Computed:    true,
 				Default:     booldefault.StaticBool(false),
-				Description: "Whether to allow configuration values that require a service restart. When false (the default), setting any variable that has requires_restart = true in the DPS parameter catalog will be rejected. Set to true to permit restart-causing variables.",
+				Description: "Whether to allow configuration values that require a service restart. When false (the default), setting any variable that has requires_restart = true in the DPS parameter catalog will be rejected both client-side and server-side. Set to true to permit restart-causing variables. The parameter is forwarded to DPS as ?allow_restart=true on config value API calls.",
 				MarkdownDescription: "Whether to allow configuration values that require a service restart. " +
-					"When `false` (the default), setting any variable that has `requires_restart = true` in the DPS parameter catalog will be rejected. " +
-					"Set to `true` to permit restart-causing variables.",
+					"When `false` (the default), setting any variable that has `requires_restart = true` in the DPS parameter catalog will be rejected " +
+					"both client-side (before the API call) and server-side (by DPS). " +
+					"Set to `true` to permit restart-causing variables. The parameter is forwarded to DPS as `?allow_restart=true` on config value API calls.",
 			},
 			"values": schema.MapAttribute{
 				Optional:            true,
@@ -240,7 +241,7 @@ func (r *ConfigResource) Create(ctx context.Context, req resource.CreateRequest,
 		sort.Strings(names)
 
 		for _, name := range names {
-			if err := r.client.SetConfigValue(ctx, config.ID, name, values[name]); err != nil {
+			if err := r.client.SetConfigValue(ctx, config.ID, name, values[name], data.AllowRestart.ValueBool()); err != nil {
 				resp.Diagnostics.AddError(
 					"Error setting config value",
 					fmt.Sprintf("Failed to set %q = %q: %s", name, values[name], err.Error()),
@@ -374,7 +375,7 @@ func (r *ConfigResource) Update(ctx context.Context, req resource.UpdateRequest,
 	sort.Strings(removed)
 
 	for _, name := range removed {
-		if err := r.client.UnsetConfigValue(ctx, configID, name); err != nil {
+		if err := r.client.UnsetConfigValue(ctx, configID, name, plan.AllowRestart.ValueBool()); err != nil {
 			resp.Diagnostics.AddError(
 				"Error unsetting config value",
 				fmt.Sprintf("Failed to unset %q: %s", name, err.Error()),
@@ -393,7 +394,7 @@ func (r *ConfigResource) Update(ctx context.Context, req resource.UpdateRequest,
 	sort.Strings(changed)
 
 	for _, name := range changed {
-		if err := r.client.SetConfigValue(ctx, configID, name, newValues[name]); err != nil {
+		if err := r.client.SetConfigValue(ctx, configID, name, newValues[name], plan.AllowRestart.ValueBool()); err != nil {
 			resp.Diagnostics.AddError(
 				"Error setting config value",
 				fmt.Sprintf("Failed to set %q = %q: %s", name, newValues[name], err.Error()),

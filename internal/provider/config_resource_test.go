@@ -85,10 +85,19 @@ func deleteConfigResponse(t *testing.T) func(w http.ResponseWriter, req *http.Re
 }
 
 func setConfigValueResponse(t *testing.T, variableName string, expectedValue string) func(w http.ResponseWriter, req *http.Request) {
+	return setConfigValueResponseWithRestart(t, variableName, expectedValue, "")
+}
+
+func setConfigValueResponseWithRestart(t *testing.T, variableName string, expectedValue string, expectAllowRestart string) func(w http.ResponseWriter, req *http.Request) {
 	return func(w http.ResponseWriter, req *http.Request) {
 		r := require.New(t)
 		r.Equal(http.MethodPost, req.Method)
 		r.Equal("/provisioning/v1/configs/"+testConfigID+"/values/"+variableName, req.URL.Path)
+
+		if expectAllowRestart != "" {
+			r.Equal(expectAllowRestart, req.URL.Query().Get("allow_restart"),
+				"expected allow_restart=%s for %s", expectAllowRestart, variableName)
+		}
 
 		var payload provisioning.ConfigValueRequest
 		err := json.NewDecoder(req.Body).Decode(&payload)
@@ -100,10 +109,20 @@ func setConfigValueResponse(t *testing.T, variableName string, expectedValue str
 }
 
 func unsetConfigValueResponse(t *testing.T, variableName string) func(w http.ResponseWriter, req *http.Request) {
+	return unsetConfigValueResponseWithRestart(t, variableName, "")
+}
+
+func unsetConfigValueResponseWithRestart(t *testing.T, variableName string, expectAllowRestart string) func(w http.ResponseWriter, req *http.Request) {
 	return func(w http.ResponseWriter, req *http.Request) {
 		r := require.New(t)
 		r.Equal(http.MethodDelete, req.Method)
 		r.Equal("/provisioning/v1/configs/"+testConfigID+"/values/"+variableName, req.URL.Path)
+
+		if expectAllowRestart != "" {
+			r.Equal(expectAllowRestart, req.URL.Query().Get("allow_restart"),
+				"expected allow_restart=%s for %s", expectAllowRestart, variableName)
+		}
+
 		w.WriteHeader(http.StatusNoContent)
 	}
 }
@@ -398,9 +417,9 @@ func TestConfigResource_AllowRestartTrue_PermitsRestartVars(t *testing.T) {
 	// allow_restart=true: no config keys check, go straight to create
 	// Create: POST /configs
 	expectRequest(createConfigResponse(t))
-	// Create: set values (alphabetical order)
-	expectRequest(setConfigValueResponse(t, "innodb_buffer_pool_size", "2G"))
-	expectRequest(setConfigValueResponse(t, "max_connections", "500"))
+	// Create: set values (alphabetical order) — verify allow_restart=true is sent to DPS
+	expectRequest(setConfigValueResponseWithRestart(t, "innodb_buffer_pool_size", "2G", "true"))
+	expectRequest(setConfigValueResponseWithRestart(t, "max_connections", "500", "true"))
 	// Read after create
 	expectRequest(getConfigResponse(t))
 	// Destroy: delete
