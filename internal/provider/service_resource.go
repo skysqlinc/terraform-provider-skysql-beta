@@ -420,8 +420,18 @@ var serviceResourceSchemaV0 = schema.Schema{
 			},
 		},
 		"config_id": schema.StringAttribute{
-			Optional:    true,
-			Description: "The ID of a custom configuration object to apply to this service. The configuration must match the service topology and version. Requires wait_for_creation = true when set during service creation.",
+			Optional: true,
+			Description: "The ID of a custom configuration object to apply to this service. The configuration must match the service topology and version. " +
+				"Requires wait_for_creation = true when set during service creation. " +
+				"Changing this value will apply the new configuration to the service. " +
+				"Removing this attribute reverts the service to its default configuration.",
+			MarkdownDescription: "The ID of a custom configuration object to apply to this service. " +
+				"The configuration must match the service topology and version. " +
+				"Requires `wait_for_creation = true` when set during service creation.\n\n" +
+				"**Update behavior:**\n" +
+				"- **Set or change** `config_id` → applies the new configuration to the service via `POST /services/{id}/config`.\n" +
+				"- **Remove** `config_id` → reverts the service to its default configuration via `DELETE /services/{id}/config`.\n" +
+				"- If the service already has the specified config applied (e.g. after import), the operation is a no-op.",
 		},
 	},
 	Blocks: map[string]schema.Block{
