@@ -102,6 +102,62 @@ type ServiceResourceModel struct {
 	ConfigID           types.String   `tfsdk:"config_id"`
 }
 
+// serviceResourceModelV1 is the model for schema version 1 (includes org_id that was removed in v2).
+type serviceResourceModelV1 struct {
+	ID                 types.String   `tfsdk:"id"`
+	Name               types.String   `tfsdk:"name"`
+	ProjectID          types.String   `tfsdk:"project_id"`
+	ServiceType        types.String   `tfsdk:"service_type"`
+	Provider           types.String   `tfsdk:"cloud_provider"`
+	Region             types.String   `tfsdk:"region"`
+	Version            types.String   `tfsdk:"version"`
+	Nodes              types.Int64    `tfsdk:"nodes"`
+	Architecture       types.String   `tfsdk:"architecture"`
+	Size               types.String   `tfsdk:"size"`
+	Topology           types.String   `tfsdk:"topology"`
+	Storage            types.Int64    `tfsdk:"storage"`
+	VolumeIOPS         types.Int64    `tfsdk:"volume_iops"`
+	VolumeThroughput   types.Int64    `tfsdk:"volume_throughput"`
+	SSLEnabled         types.Bool     `tfsdk:"ssl_enabled"`
+	NoSQLEnabled       types.Bool     `tfsdk:"nosql_enabled"`
+	VolumeType         types.String   `tfsdk:"volume_type"`
+	WaitForCreation    types.Bool     `tfsdk:"wait_for_creation"`
+	Timeouts           timeouts.Value `tfsdk:"timeouts"`
+	Mechanism          types.String   `tfsdk:"endpoint_mechanism"`
+	AllowedAccounts    types.List     `tfsdk:"endpoint_allowed_accounts"`
+	EndpointService    types.String   `tfsdk:"endpoint_service"`
+	WaitForDeletion    types.Bool     `tfsdk:"wait_for_deletion"`
+	ReplicationEnabled types.Bool     `tfsdk:"replication_enabled"`
+	PrimaryHost        types.String   `tfsdk:"primary_host"`
+	IsActive           types.Bool     `tfsdk:"is_active"`
+	WaitForUpdate      types.Bool     `tfsdk:"wait_for_update"`
+	DeletionProtection types.Bool     `tfsdk:"deletion_protection"`
+	AllowList          types.List     `tfsdk:"allow_list"`
+	MaxscaleNodes      types.Int64    `tfsdk:"maxscale_nodes"`
+	MaxscaleSize       types.String   `tfsdk:"maxscale_size"`
+	FQDN               types.String   `tfsdk:"fqdn"`
+	AvailabilityZone   types.String   `tfsdk:"availability_zone"`
+	Tags               types.Map      `tfsdk:"tags"`
+	ConfigID           types.String   `tfsdk:"config_id"`
+	OrgID              types.String   `tfsdk:"org_id"`
+}
+
+// serviceResourcePriorSchemaV1 returns the schema for version 1 (with org_id).
+func serviceResourcePriorSchemaV1() *schema.Schema {
+	attrs := make(map[string]schema.Attribute, len(serviceResourceSchemaV0.Attributes)+1)
+	for k, v := range serviceResourceSchemaV0.Attributes {
+		attrs[k] = v
+	}
+	attrs["org_id"] = schema.StringAttribute{
+		Optional:    true,
+		Description: "Deprecated: Organization ID (moved to provider level)",
+	}
+	return &schema.Schema{
+		Attributes: attrs,
+		Blocks:     serviceResourceSchemaV0.Blocks,
+	}
+}
+
 // ServiceResourceNamedPortModel is an endpoint port
 type ServiceResourceNamedPortModel struct {
 	Name types.String `tfsdk:"name"`
@@ -114,7 +170,7 @@ func (r *ServiceResource) Metadata(ctx context.Context, req resource.MetadataReq
 
 var serviceResourceSchemaV0 = schema.Schema{
 	Description: "Creates and manages a service in SkySQL",
-	Version:     1,
+	Version:     2,
 	Attributes: map[string]schema.Attribute{
 		"id": schema.StringAttribute{
 			Required: false,
@@ -1605,6 +1661,56 @@ func (r *ServiceResource) UpgradeState(ctx context.Context) map[int64]resource.S
 					diags = resp.State.Set(ctx, state)
 					resp.Diagnostics.Append(diags...)
 				}
+			},
+		},
+		1: {
+			PriorSchema: serviceResourcePriorSchemaV1(),
+			StateUpgrader: func(ctx context.Context, req resource.UpgradeStateRequest, resp *resource.UpgradeStateResponse) {
+				var oldState serviceResourceModelV1
+				diags := req.State.Get(ctx, &oldState)
+				resp.Diagnostics.Append(diags...)
+				if resp.Diagnostics.HasError() {
+					return
+				}
+				newState := ServiceResourceModel{
+					ID:                 oldState.ID,
+					Name:               oldState.Name,
+					ProjectID:          oldState.ProjectID,
+					ServiceType:        oldState.ServiceType,
+					Provider:           oldState.Provider,
+					Region:             oldState.Region,
+					Version:            oldState.Version,
+					Nodes:              oldState.Nodes,
+					Architecture:       oldState.Architecture,
+					Size:               oldState.Size,
+					Topology:           oldState.Topology,
+					Storage:            oldState.Storage,
+					VolumeIOPS:         oldState.VolumeIOPS,
+					VolumeThroughput:   oldState.VolumeThroughput,
+					SSLEnabled:         oldState.SSLEnabled,
+					NoSQLEnabled:       oldState.NoSQLEnabled,
+					VolumeType:         oldState.VolumeType,
+					WaitForCreation:    oldState.WaitForCreation,
+					Timeouts:           oldState.Timeouts,
+					Mechanism:          oldState.Mechanism,
+					AllowedAccounts:    oldState.AllowedAccounts,
+					EndpointService:    oldState.EndpointService,
+					WaitForDeletion:    oldState.WaitForDeletion,
+					ReplicationEnabled: oldState.ReplicationEnabled,
+					PrimaryHost:        oldState.PrimaryHost,
+					IsActive:           oldState.IsActive,
+					WaitForUpdate:      oldState.WaitForUpdate,
+					DeletionProtection: oldState.DeletionProtection,
+					AllowList:          oldState.AllowList,
+					MaxscaleNodes:      oldState.MaxscaleNodes,
+					MaxscaleSize:       oldState.MaxscaleSize,
+					FQDN:               oldState.FQDN,
+					AvailabilityZone:   oldState.AvailabilityZone,
+					Tags:               oldState.Tags,
+					ConfigID:           oldState.ConfigID,
+				}
+				diags = resp.State.Set(ctx, newState)
+				resp.Diagnostics.Append(diags...)
 			},
 		},
 	}
