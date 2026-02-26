@@ -99,7 +99,6 @@ type ServiceResourceModel struct {
 	FQDN               types.String   `tfsdk:"fqdn"`
 	AvailabilityZone   types.String   `tfsdk:"availability_zone"`
 	Tags               types.Map      `tfsdk:"tags"`
-	OrgID              types.String   `tfsdk:"org_id"`
 	ConfigID           types.String   `tfsdk:"config_id"`
 }
 
@@ -412,13 +411,6 @@ var serviceResourceSchemaV0 = schema.Schema{
 				&tagsNamePlanModifier{},
 			},
 		},
-		"org_id": schema.StringAttribute{
-			Optional:    true,
-			Description: "The organization ID to use for this service. When specified, all API requests will include the X-MDB-Org header to operate in this organization's context. This allows managing services across multiple organizations.",
-			PlanModifiers: []planmodifier.String{
-				stringplanmodifier.RequiresReplace(),
-			},
-		},
 		"config_id": schema.StringAttribute{
 			Optional: true,
 			Description: "The ID of a custom configuration object to apply to this service. The configuration must match the service topology and version. " +
@@ -564,7 +556,7 @@ func (r *ServiceResource) Create(ctx context.Context, req resource.CreateRequest
 		}
 	}
 
-	service, err := r.client.CreateService(ctx, createServiceRequest, skysql.WithOrgID(state.OrgID.ValueString()))
+	service, err := r.client.CreateService(ctx, createServiceRequest)
 	if err != nil {
 		resp.Diagnostics.AddError("Error creating service", err.Error())
 		return
@@ -627,7 +619,7 @@ func (r *ServiceResource) Create(ctx context.Context, req resource.CreateRequest
 		}
 
 		err = sdkresource.RetryContext(ctx, createTimeout, func() *sdkresource.RetryError {
-			service, err := r.client.GetServiceByID(ctx, service.ID, skysql.WithOrgID(state.OrgID.ValueString()))
+			service, err := r.client.GetServiceByID(ctx, service.ID)
 			if err != nil {
 				return sdkresource.NonRetryableError(fmt.Errorf("error retrieving service details: %v", err))
 			}
@@ -665,7 +657,7 @@ func (r *ServiceResource) Create(ctx context.Context, req resource.CreateRequest
 				"service_id": service.ID,
 				"config_id":  configID,
 			})
-			err = r.client.ApplyConfigToService(ctx, service.ID, configID, skysql.WithOrgID(state.OrgID.ValueString()))
+			err = r.client.ApplyConfigToService(ctx, service.ID, configID)
 			if err != nil {
 				resp.Diagnostics.AddError("Error applying configuration to service",
 					fmt.Sprintf("Unable to apply config %q to service %q: %s", configID, service.ID, err.Error()))
@@ -675,7 +667,7 @@ func (r *ServiceResource) Create(ctx context.Context, req resource.CreateRequest
 
 			// Wait for config apply to complete.
 			err = sdkresource.RetryContext(ctx, createTimeout, func() *sdkresource.RetryError {
-				svc, err := r.client.GetServiceByID(ctx, service.ID, skysql.WithOrgID(state.OrgID.ValueString()))
+				svc, err := r.client.GetServiceByID(ctx, service.ID)
 				if err != nil {
 					return sdkresource.NonRetryableError(fmt.Errorf("error retrieving service details: %v", err))
 				}
@@ -754,7 +746,7 @@ func (r *ServiceResource) Read(ctx context.Context, req resource.ReadRequest, re
 }
 
 func (r *ServiceResource) readServiceState(ctx context.Context, data *ServiceResourceModel) error {
-	service, err := r.client.GetServiceByID(ctx, data.ID.ValueString(), skysql.WithOrgID(data.OrgID.ValueString()))
+	service, err := r.client.GetServiceByID(ctx, data.ID.ValueString())
 	if err != nil {
 		return err
 	}
@@ -934,7 +926,7 @@ func (r *ServiceResource) updateServiceStorage(ctx context.Context, plan *Servic
 			"throughput_to":   plan.VolumeThroughput.ValueInt64(),
 		})
 
-		err := r.client.ModifyServiceStorage(ctx, state.ID.ValueString(), plan.Storage.ValueInt64(), plan.VolumeIOPS.ValueInt64(), plan.VolumeThroughput.ValueInt64(), skysql.WithOrgID(state.OrgID.ValueString()))
+		err := r.client.ModifyServiceStorage(ctx, state.ID.ValueString(), plan.Storage.ValueInt64(), plan.VolumeIOPS.ValueInt64(), plan.VolumeThroughput.ValueInt64())
 		if err != nil {
 			resp.Diagnostics.AddError("Error updating a storage for the service",
 				fmt.Sprintf("Unable to update a storage size for the service, got error: %s", err))
@@ -959,7 +951,7 @@ func (r *ServiceResource) updateNumberOfNodeForService(ctx context.Context, plan
 			"to":   plan.Nodes.ValueInt64(),
 		})
 
-		err := r.client.ModifyServiceNodeNumber(ctx, state.ID.ValueString(), plan.Nodes.ValueInt64(), skysql.WithOrgID(state.OrgID.ValueString()))
+		err := r.client.ModifyServiceNodeNumber(ctx, state.ID.ValueString(), plan.Nodes.ValueInt64())
 		if err != nil {
 			resp.Diagnostics.AddError("Error updating a number of nodes for the service", fmt.Sprintf("Unable to update a nodes number for the service, got error: %s", err))
 			return
@@ -982,7 +974,7 @@ func (r *ServiceResource) updateServiceSize(ctx context.Context, plan *ServiceRe
 			"to":   plan.Size.ValueString(),
 		})
 
-		err := r.client.ModifyServiceSize(ctx, state.ID.ValueString(), plan.Size.ValueString(), skysql.WithOrgID(state.OrgID.ValueString()))
+		err := r.client.ModifyServiceSize(ctx, state.ID.ValueString(), plan.Size.ValueString())
 		if err != nil {
 			resp.Diagnostics.AddError("Error updating service size", fmt.Sprintf("Unable to update service size, got error: %s", err))
 			return
@@ -1034,8 +1026,7 @@ func (r *ServiceResource) updateServiceEndpoints(ctx context.Context, plan *Serv
 			state.ID.ValueString(),
 			plan.Mechanism.ValueString(),
 			planAllowedAccounts,
-			visibility,
-			skysql.WithOrgID(state.OrgID.ValueString()))
+			visibility)
 		if err != nil {
 			resp.Diagnostics.AddError("Can not update service", err.Error())
 			return
@@ -1082,7 +1073,7 @@ func (r *ServiceResource) updateAllowList(ctx context.Context, plan *ServiceReso
 				})
 			}
 
-			allowListResp, err := r.client.UpdateServiceAllowListByID(ctx, plan.ID.ValueString(), allowListUpdateRequest, skysql.WithOrgID(plan.OrgID.ValueString()))
+			allowListResp, err := r.client.UpdateServiceAllowListByID(ctx, plan.ID.ValueString(), allowListUpdateRequest)
 			if err != nil {
 				if errors.Is(err, skysql.ErrorServiceNotFound) {
 					tflog.Warn(ctx, "SkySQL service not found, removing from state", map[string]interface{}{
@@ -1120,7 +1111,7 @@ func (r *ServiceResource) updateServicePowerState(ctx context.Context, plan *Ser
 			"id":        state.ID.ValueString(),
 			"is_active": plan.IsActive.ValueBool(),
 		})
-		err := r.client.SetServicePowerState(ctx, state.ID.ValueString(), plan.IsActive.ValueBool(), skysql.WithOrgID(state.OrgID.ValueString()))
+		err := r.client.SetServicePowerState(ctx, state.ID.ValueString(), plan.IsActive.ValueBool())
 		if err != nil {
 			resp.Diagnostics.AddError("Can not update service", err.Error())
 			return
@@ -1165,7 +1156,7 @@ func (r *ServiceResource) updateServiceTags(ctx context.Context, plan *ServiceRe
 				"id": state.ID.ValueString(),
 			})
 
-			err := r.client.UpdateServiceTags(ctx, state.ID.ValueString(), planTags, skysql.WithOrgID(state.OrgID.ValueString()))
+			err := r.client.UpdateServiceTags(ctx, state.ID.ValueString(), planTags)
 			if err != nil {
 				if errors.Is(err, skysql.ErrorServiceNotFound) {
 					tflog.Warn(ctx, "SkySQL service not found, removing from state", map[string]interface{}{
@@ -1204,7 +1195,7 @@ func (r *ServiceResource) updateServiceConfig(ctx context.Context, plan *Service
 
 	// Check the actual service state to avoid applying the same config
 	// (e.g. after import, TF state may be empty but the service already has the config).
-	service, err := r.client.GetServiceByID(ctx, serviceID, skysql.WithOrgID(state.OrgID.ValueString()))
+	service, err := r.client.GetServiceByID(ctx, serviceID)
 	if err != nil {
 		resp.Diagnostics.AddError("Error reading service", err.Error())
 		return
@@ -1221,7 +1212,7 @@ func (r *ServiceResource) updateServiceConfig(ctx context.Context, plan *Service
 		tflog.Info(ctx, "Removing configuration from service", map[string]interface{}{
 			"service_id": serviceID,
 		})
-		err := r.client.RemoveConfigFromService(ctx, serviceID, skysql.WithOrgID(state.OrgID.ValueString()))
+		err := r.client.RemoveConfigFromService(ctx, serviceID)
 		if err != nil {
 			resp.Diagnostics.AddError("Error removing configuration from service",
 				fmt.Sprintf("Unable to remove config from service %q: %s", serviceID, err.Error()))
@@ -1244,7 +1235,7 @@ func (r *ServiceResource) updateServiceConfig(ctx context.Context, plan *Service
 			"service_id": serviceID,
 			"config_id":  planConfigID,
 		})
-		err := r.client.ApplyConfigToService(ctx, serviceID, planConfigID, skysql.WithOrgID(state.OrgID.ValueString()))
+		err := r.client.ApplyConfigToService(ctx, serviceID, planConfigID)
 		if err != nil {
 			resp.Diagnostics.AddError("Error applying configuration to service",
 				fmt.Sprintf("Unable to apply config %q to service %q: %s", planConfigID, serviceID, err.Error()))
@@ -1265,7 +1256,7 @@ var serviceUpdateWaitStates = []string{"ready", "failed", "stopped"}
 func (r *ServiceResource) waitForUpdate(ctx context.Context, state *ServiceResourceModel, resp *resource.UpdateResponse) {
 	if state.WaitForUpdate.ValueBool() {
 		err := sdkresource.RetryContext(ctx, defaultUpdateTimeout, func() *sdkresource.RetryError {
-			service, err := r.client.GetServiceByID(ctx, state.ID.ValueString(), skysql.WithOrgID(state.OrgID.ValueString()))
+			service, err := r.client.GetServiceByID(ctx, state.ID.ValueString())
 			if err != nil {
 				return sdkresource.NonRetryableError(fmt.Errorf("error retrieving service details: %v", err))
 			}
@@ -1302,7 +1293,7 @@ func (r *ServiceResource) Delete(ctx context.Context, req resource.DeleteRequest
 		return
 	}
 
-	err := r.client.DeleteServiceByID(ctx, state.ID.ValueString(), skysql.WithOrgID(state.OrgID.ValueString()))
+	err := r.client.DeleteServiceByID(ctx, state.ID.ValueString())
 	if err != nil {
 		if errors.Is(err, skysql.ErrorServiceNotFound) {
 			tflog.Warn(ctx, "SkySQL service not found, removing from state", map[string]interface{}{
@@ -1323,7 +1314,7 @@ func (r *ServiceResource) Delete(ctx context.Context, req resource.DeleteRequest
 		}
 
 		err = sdkresource.RetryContext(ctx, deleteTimeout, func() *sdkresource.RetryError {
-			service, err := r.client.GetServiceByID(ctx, state.ID.ValueString(), skysql.WithOrgID(state.OrgID.ValueString()))
+			service, err := r.client.GetServiceByID(ctx, state.ID.ValueString())
 			if err != nil {
 				if errors.Is(err, skysql.ErrorServiceNotFound) {
 					return nil
