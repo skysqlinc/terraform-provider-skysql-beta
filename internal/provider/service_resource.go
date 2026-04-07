@@ -285,9 +285,13 @@ var serviceResourceSchemaV0 = schema.Schema{
 			},
 		},
 		"ssl_enabled": schema.BoolAttribute{
-			Optional:    true,
-			Computed:    true,
-			Description: "Whether to enable SSL/TLS encryption for client connections to the database. When true, the database requires TLS-encrypted connections. Can be toggled on an existing service (the service will be updated in-place). Cannot be toggled for `serverless-standalone` topology.",
+			Optional: true,
+			Computed: true,
+			Description: "Whether to enable SSL/TLS encryption for client connections to the database. When true, the database requires TLS-encrypted connections. Can be toggled on an existing service (the service will be updated in-place). Cannot be toggled for `serverless-standalone` topology.\n\n" +
+				"**Important:** Toggling this flag controls whether the server or proxy offers TLS, but it does not modify the default database user's grants. " +
+				"The default user is created with `REQUIRE SSL`. For topologies that use MaxScale (e.g., `es-replica`), this is not an issue because MaxScale terminates TLS independently. " +
+				"For topologies without MaxScale (e.g., `es-single`), disabling SSL will prevent the default user from connecting because the user still requires SSL at the database level. " +
+				"To connect after disabling SSL on a non-MaxScale topology, first run `ALTER USER '<username>'@'%' REQUIRE NONE` while SSL is still enabled.",
 			PlanModifiers: []planmodifier.Bool{
 				boolplanmodifier.UseStateForUnknown(),
 			},
