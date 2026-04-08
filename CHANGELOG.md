@@ -1,9 +1,8 @@
 # Changelog
 
-## [3.5.2-beta] - 2026-04-06
-### Fixed
-- `ssl_enabled` can now be toggled on an existing service in-place without requiring destroy and recreate ([#45](https://github.com/skysqlinc/terraform-provider-skysql/issues/45)).
-- Improved `ssl_enabled` documentation to explain that it controls TLS encryption for client database connections.
+## [3.5.3-beta] - 2026-04-08
+### Reverted
+- Reverted `ssl_enabled` changes from 3.5.2-beta. The feature is not fully implemented yet and will be completed in a future release.
 
 ## [3.5.1-beta] - 2026-04-06
 ### Fixed
