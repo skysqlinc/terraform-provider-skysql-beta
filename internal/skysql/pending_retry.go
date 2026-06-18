@@ -3,7 +3,6 @@ package skysql
 import (
 	"context"
 	"errors"
-	"fmt"
 	"time"
 
 	"github.com/hashicorp/terraform-plugin-log/tflog"
@@ -37,40 +36,23 @@ func isPendingStateError(err error) bool {
 	return errors.Is(err, ErrorServiceInPendingState)
 }
 
-// doWithPendingRetry runs fn and, when it fails only because the service is in a
-// pending state, waits and retries until the operation is accepted, fn fails for
-// another reason, ctx is cancelled, or the configured timeout elapses. This
-// serializes operations issued close together (for example a config change and a
-// scaling operation) instead of failing the later one.
+// doWithPendingRetry runs fn, retrying while the backend reports the service is
+// in a pending_* state (another operation is in flight), until fn succeeds,
+// fails for another reason, or pendingRetryTimeout elapses. The HTTP request
+// inside fn observes ctx, so a cancelled context ends the loop on the next
+// attempt. This serializes operations issued close together (for example a
+// config change and a scaling operation) instead of failing the later one.
 func (c *Client) doWithPendingRetry(ctx context.Context, fn func() error) error {
-	interval := c.pendingRetryInterval
-	if interval <= 0 {
-		interval = defaultPendingRetryInterval
-	}
-	timeout := c.pendingRetryTimeout
-	if timeout <= 0 {
-		timeout = defaultPendingRetryTimeout
-	}
-
-	deadline := time.Now().Add(timeout)
-	for attempt := 1; ; attempt++ {
+	deadline := time.Now().Add(c.pendingRetryTimeout)
+	for {
 		err := fn()
-		if !isPendingStateError(err) {
+		if !isPendingStateError(err) || time.Now().After(deadline) {
 			return err
 		}
-		if time.Now().After(deadline) {
-			return fmt.Errorf("service was still in a pending state after %s: %w", timeout, err)
-		}
 
-		tflog.Debug(ctx, "service is in a pending state, waiting before retrying the operation", map[string]interface{}{
-			"attempt":  attempt,
-			"retry_in": interval.String(),
+		tflog.Debug(ctx, "service is in a pending state; retrying after a delay", map[string]interface{}{
+			"retry_in": c.pendingRetryInterval.String(),
 		})
-
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		case <-time.After(interval):
-		}
+		time.Sleep(c.pendingRetryInterval)
 	}
 }

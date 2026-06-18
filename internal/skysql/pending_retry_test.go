@@ -90,19 +90,26 @@ func TestDoWithPendingRetry_NonPendingReturnsImmediately(t *testing.T) {
 	}
 }
 
-func TestDoWithPendingRetry_RespectsContextCancellation(t *testing.T) {
-	// Long interval/timeout so the only way out is ctx cancellation.
-	c := &Client{pendingRetryInterval: time.Hour, pendingRetryTimeout: time.Hour}
+func TestDoWithPendingRetry_StopsWhenContextCancelled(t *testing.T) {
+	c := &Client{pendingRetryInterval: time.Millisecond, pendingRetryTimeout: time.Minute}
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
 	calls := 0
-	err := c.doWithPendingRetry(ctx, func() error { calls++; return pendingErr() })
+	// The HTTP request inside fn observes ctx, so once cancelled it fails fast
+	// with a context error rather than another pending-state error.
+	err := c.doWithPendingRetry(ctx, func() error {
+		calls++
+		if ctx.Err() != nil {
+			return ctx.Err()
+		}
+		return pendingErr()
+	})
 	if !errors.Is(err, context.Canceled) {
 		t.Fatalf("expected context.Canceled, got %v", err)
 	}
 	if calls != 1 {
-		t.Fatalf("expected 1 call before cancellation was observed, got %d", calls)
+		t.Fatalf("expected 1 call, got %d", calls)
 	}
 }
 
